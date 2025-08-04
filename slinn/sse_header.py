@@ -1,4 +1,4 @@
-from slinn import HttpResponseHeader
+from . import HttpResponseHeader
 
 
 class SSEHeader(HttpResponseHeader):

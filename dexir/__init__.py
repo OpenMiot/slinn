@@ -1,1 +1,1 @@
-from dexir import dexir
+from . import dexir

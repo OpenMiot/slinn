@@ -1,9 +1,9 @@
-from slinn.http_response import HttpResponse
-from slinn import utils, FTDispatcher
+from .http_response import HttpResponse
+from . import utils, FTDispatcher
+import gzip
 
 
 class HttpRender(HttpResponse):
-    
     """
     Renders any file to HttpResponse-based object
     """
@@ -24,8 +24,8 @@ class HttpRender(HttpResponse):
                 return 0
             else:
                 return b
+        use_gzip = True
         if htrf.handles == []:
-            print(self.file_path)
             with open(self.file_path, 'rb') as file:
                 return HttpResponse(file.read(), data=self.data).make(use_gzip=use_gzip)
         sizes = [size(handle.filter, self.file_path) for handle in htrf.handles]

@@ -1,4 +1,4 @@
-from slinn import Handle
+from . import Handle
 
 
 class FTDispatcher:

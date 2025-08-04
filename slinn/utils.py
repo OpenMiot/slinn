@@ -2,7 +2,6 @@ import warnings
 import inspect
 import json
 import re
-import socket
 import threading
 
 
@@ -81,7 +80,7 @@ def min_restartswith_size(text: str, reg: str) -> int:
 
 
 def check_socket(sock) -> bool:
-    return sock.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR) == 0
+    return sock.fileno() != -1
 
 def representate(obj: any) -> bytes:
     if type(obj) == dict:

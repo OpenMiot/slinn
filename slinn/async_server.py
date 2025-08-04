@@ -1,14 +1,12 @@
 from __future__ import annotations
 from typing import Any
-from slinn import AsyncRequest, Address, Filter, HCDispatcher, FTDispatcher, utils
+from . import AsyncRequest, Address, Filter, HCDispatcher, FTDispatcher, utils, AsyncSSLSocketWrapper, AsyncSocketWrapper
 import asyncio
 import socket
 import ssl
 import os
 import logging
 import traceback
-
-from slinn.utils import StoppableThread
 
 
 class AsyncServer:
@@ -120,17 +118,20 @@ class AsyncServer:
         try:
             self._func(self)
             if self.ssl:
-                connection = self.ssl_context.wrap_socket(
-                    connection,
-                    server_side=True,
-                    do_handshake_on_connect=False,
-                    suppress_ragged_eofs=True
-                )
-                await AsyncServer.async_do_handshake(connection)
+                #connection = self.ssl_context.wrap_socket(
+                #    connection,
+                #    server_side=True,
+                #    do_handshake_on_connect=False,
+                #    suppress_ragged_eofs=True
+                #)
+                #await AsyncServer.async_do_handshake(connection)
+                connection = AsyncSSLSocketWrapper(connection, self.ssl_context, self.loop)
+                await connection.do_handshake()
+            else:
+                connection = AsyncSocketWrapper(connection, self.loop)
             request: AsyncRequest
             try:
                 connection.settimeout(self.timeout)
-                connection.setblocking(False)
                 data = bytearray()
                 while len(data) < self.max_bytes:
                     try:

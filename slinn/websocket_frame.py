@@ -1,5 +1,5 @@
 from __future__ import annotations
-from slinn import WebSocketOpcodes
+from . import WebSocketOpcodes
 import asyncio
 
 
@@ -177,10 +177,6 @@ class WebSocketFrame:
         else:
             data += await loop.sock_recv(sock, payload_len)
         return WebSocketFrame.unpack(data)
-
-
-
-
 
 
 if __name__ == '__main__':

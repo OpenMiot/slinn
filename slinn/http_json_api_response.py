@@ -1,4 +1,4 @@
-from slinn.http_json_response import HttpJSONResponse
+from .http_json_response import HttpJSONResponse
 
 
 class HttpJSONAPIResponse(HttpJSONResponse):

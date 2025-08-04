@@ -1,4 +1,4 @@
-from slinn.exceptions import HandlerNotFound
+from .exceptions import HandlerNotFound
 
 
 class HCDispatcher:

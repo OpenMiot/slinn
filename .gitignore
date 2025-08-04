@@ -2,10 +2,12 @@ slinn.egg-info/
 slinnold/
 test/
 dist/
-*/__pycache__/
+**/__pycache__/
 *.pyc
 localhost.crt
 localhost.key
 t/
 .venv/
 .idea/
+**/root/*
+example.py

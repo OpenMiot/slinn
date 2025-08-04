@@ -1,5 +1,5 @@
-from slinn import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, AsyncRequest, HttpResponseChunk, utils
-from slinn.exceptions import NotAWebSocketConnection
+from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, AsyncRequest, HttpResponseChunk, utils
+from .exceptions import NotAWebSocketConnection
 
 
 class AsyncWebSocketConnection:

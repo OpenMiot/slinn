@@ -1,5 +1,5 @@
 from __future__ import annotations
-from slinn import Handle, Filter, LinkFilter
+from . import Handle, Filter, LinkFilter
 
 
 class Dispatcher:
@@ -12,13 +12,15 @@ class Dispatcher:
         self.handles = []
         self.hosts = hosts if hosts != () else ('.*', )
 
-    def __call__(self, regexp: Filter) -> callable:
+    def __call__(self, _filter: Filter) -> callable:
         def wrapper(func):
-            self.handles.append(Handle(regexp, func))
+            self.handles.append(Handle(_filter, func, _filter.args))
             return func
 
         return wrapper
 
     def static(self, link: str, http_response, *args, **kwargs) -> Dispatcher:
-        self.handles.append(Handle(LinkFilter(link), lambda: http_response(*args, **kwargs)))
+        async def handler():
+            return http_response(*args, **kwargs)
+        self.handles.append(Handle(LinkFilter(link), handler))
         return self

@@ -1,5 +1,5 @@
 import urllib.parse
-from slinn import File, FTDispatcher, utils
+from . import File, FTDispatcher, utils
 
 
 class Request:
@@ -50,7 +50,7 @@ class Request:
         'files': []
       }
 
-    def __init__(self, header: str, body: bytes, client_address: tuple[str, int], connection, htrf: FTDispatcher = FTDispatcher()) -> None:
+    def __init__(self, header: str, body: bytes, client_address: tuple[str, int], connection, server, htrf: FTDispatcher = FTDispatcher()) -> None:
         def get_args(text):
             return {} if text == '' else {pair.split('=')[0]: '='.join(pair.split('=')[1:]) for pair in text.split('&')}
 
@@ -82,6 +82,7 @@ class Request:
         self.__str__ = self.__repr__
 
         self.connection = connection
+        self.server = server
         self.htrf = htrf
 
     def __repr__(self) -> str:

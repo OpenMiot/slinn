@@ -1,6 +1,5 @@
-from __future__ import annotations
-from typing import Any
-from slinn import Request, Address, Filter, HCDispatcher, FTDispatcher, utils
+from typing import Any, Callable
+from . import Request, Address, HCDispatcher, FTDispatcher, utils
 import socket
 import ssl
 import os
@@ -13,15 +12,9 @@ class Server:
     Main class to start server
     """
 
-    class Handle:
-        def __init__(self, filter: Filter, function):
-            self.filter = filter
-            self.function = function
-
-    def __init__(self, *dispatchers: tuple[Any, ...], smart_navigation: bool = True, ssl_fullchain: str = None,
-                 # type: ignore
+    def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
                  ssl_key: str = None, timeout: float = 0.03, max_bytes_per_receive: int = 4096,
-                 max_bytes: int = 4294967296, _func=lambda server: None, logger: logging.Logger = logging.getLogger(),
+                 max_bytes: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
                  hcdp: HCDispatcher = HCDispatcher(), htrf: FTDispatcher = FTDispatcher()) -> None:  # type: ignore
         self.dispatchers = dispatchers
         self.smart_navigation = smart_navigation
@@ -33,8 +26,8 @@ class Server:
         self.timeout = timeout
         self.max_bytes_per_receive = max_bytes_per_receive
         self.max_bytes = max_bytes
-        self._func = _func
-        self.logger = logger
+        self._func = _func if _func is not None else lambda server: None
+        self.logger = logger if logger is not None else logging.getLogger('slinn')
         self.hcdp = hcdp
         self.htrf = htrf
 
@@ -113,8 +106,7 @@ class Server:
 
                 if header == '':
                     return
-                request = Request(header, content, client_address, client_socket)
-                request.htrf = self.htrf
+                request = Request(header, content, client_address, client_socket, self, self.htrf)
                 self.logger.info(repr(request))
             except KeyError:
                 return self.logger.info('Got KeyError, probably invalid request. Ignore')
@@ -149,7 +141,9 @@ class Server:
                                           http_data=http_data,
                                           http_header=http_header,
                                           http_content=http_content,
-                                          client_socket=client_socket)
+                                          client_socket=client_socket,
+                                          server=self,
+                                          **handle.args(request))
                 if type(response) is int:
                     handle = self.hcdp(response)
                     if handle is not None:

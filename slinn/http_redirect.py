@@ -1,4 +1,4 @@
-from slinn import HttpResponse
+from . import HttpResponse
 
 
 class HttpRedirect(HttpResponse):

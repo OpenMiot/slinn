@@ -1,4 +1,4 @@
-from slinn.http_response import HttpResponse
+from .http_response import HttpResponse
 import slinn
 
 

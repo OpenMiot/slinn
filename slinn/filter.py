@@ -1,4 +1,4 @@
-from slinn import utils
+from . import utils
 
 
 class Filter:
@@ -7,9 +7,9 @@ class Filter:
     Base class for filtering requests
     """
     
-    def __init__(self, filter: str, methods: tuple = None) -> None:
-        self.filter = filter
-        self.methods = ('GET', 'POST') if methods is None else methods
+    def __init__(self, _filter: str, methods: tuple = ('GET', 'POST')) -> None:
+        self.filter = _filter
+        self.methods = methods
 
     def check(self, text: str, method: str) -> bool:
         return utils.rematcheswith(text, self.filter) and method.upper() in self.methods
@@ -23,3 +23,6 @@ class Filter:
             return 0
         else:
             return b
+
+    def args(self, *args, **kwargs):
+        return {}

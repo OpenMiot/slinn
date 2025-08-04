@@ -1,5 +1,5 @@
-from slinn import HttpResponseChunk
-from slinn.exceptions import SSEEventIsEmpty
+from . import HttpResponseChunk
+from .exceptions import SSEEventIsEmpty
 
 
 class SSEEvent(HttpResponseChunk):

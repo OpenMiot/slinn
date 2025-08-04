@@ -1,6 +1,6 @@
 import re
 import urllib.parse
-from slinn import utils
+from . import utils
 
 
 class Preprocessor:

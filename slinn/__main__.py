@@ -1,7 +1,7 @@
 import venv
 import sys
 import subprocess
-from slinn.default import *
+from .default import *
 
 
 RED = '\u001b[31m'

@@ -1,4 +1,4 @@
-from slinn import HttpResponseHeader
+from . import HttpResponseHeader
 import hashlib
 import base64
 
