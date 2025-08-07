@@ -1,4 +1,4 @@
-from slinn import AsyncServer, Response, Address, ResponseHeader, ResponseChunk, ApiDispatcher, SSEHeader, SSEEvent, WebSocketHandshake, AsyncWebSocketConnection, WebSocketFrame, WebSocketOpcodes, IMiddleware, Server
+from slinn import AsyncServer, HttpResponse, Address, ResponseHeader, ResponseChunk, ApiDispatcher, SSEHeader, SSEEvent, WebSocketHandshake, AsyncWebSocketConnection, WebSocketFrame, WebSocketOpcodes, IMiddleware, Server
 from slinn.storage import Storage
 from slinn.utils import optional
 import logging
@@ -34,11 +34,11 @@ class ExampleMiddleware(IMiddleware):
 
 @dp.get()
 async def index(request):
-    await request.respond(Response, 'Hello, world')
+    await request.respond(HttpResponse, 'Hello, world')
 
 @dp.get('test')
 def test(request):
-    request.respond(Response, 'test')
+    request.respond(HttpResponse, 'test')
 
 
 @dp.get('gpsl')
@@ -74,7 +74,7 @@ async def ws(request):
 @ExampleMiddleware('4eburek')
 @dp.get('/user/<int user_id>')
 async def path(user_id, lolkek=None):
-    return Response(str(user_id) + str(lolkek))
+    return HttpResponse(str(user_id) + str(lolkek))
 
 import inspect
 print(inspect.signature(path).parameters['kwargs'].kind)
@@ -86,4 +86,5 @@ with storage('index.html', 'w') as file:
 
 print([handle.filter._pattern for handle in dp.handles])
 #asyncio.run(AsyncServer(dp, ssl_fullchain='localhost.crt', ssl_key='localhost.key').listen(Address(8080)))
-Server(dp, ssl_fullchain='localhost.crt', ssl_key='localhost.key').listen(Address(8080))
+asyncio.run(AsyncServer(dp, ssl_fullchain='fullchain.pem', ssl_key='privkey.pem').listen(Address(8080)))
+#Server(dp, ssl_fullchain='localhost.crt', ssl_key='localhost.key').listen(Address(8080))

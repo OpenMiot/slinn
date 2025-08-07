@@ -118,13 +118,6 @@ class AsyncServer:
         try:
             self._func(self)
             if self.ssl:
-                #connection = self.ssl_context.wrap_socket(
-                #    connection,
-                #    server_side=True,
-                #    do_handshake_on_connect=False,
-                #    suppress_ragged_eofs=True
-                #)
-                #await AsyncServer.async_do_handshake(connection)
                 connection = AsyncSSLSocketWrapper(connection, self.ssl_context, self.loop)
                 await connection.do_handshake()
             else:
@@ -135,20 +128,19 @@ class AsyncServer:
                 data = bytearray()
                 while len(data) < self.max_bytes:
                     try:
-                        b = await self.loop.sock_recv(connection, self.max_bytes_per_receive)
+                        b = await connection.recv(self.max_bytes_per_receive)
                         data += b
                         if b'\r\n\r\n' in data:
                             break
                     except (TimeoutError, socket.timeout):
                         break
-
                 data = data.split(b'\r\n\r\n')
                 header = data[0].decode()
 
                 if header == '':
                     return
 
-                request = AsyncRequest(self.loop, header, b'', client_address, connection)
+                request = AsyncRequest(self.loop, header, b'', client_address, connection, self)
                 content = data[1]
                 data = bytearray()
                 while len(data) < request.header['data'].get('Content-Length', 0):
@@ -159,7 +151,7 @@ class AsyncServer:
                         break
 
                 content += data
-                request = AsyncRequest(self.loop, header, content, client_address, connection)
+                request = AsyncRequest(self.loop, header, content, client_address, connection, self)
                 request.htrf = self.htrf
                 self.logger.info(repr(request))
             except KeyError:
@@ -213,6 +205,6 @@ class AsyncServer:
                             i += 1
                         except TimeoutError:
                             continue
-                connection.close()
+                await connection.close()
             return True
         return False

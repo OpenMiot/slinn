@@ -44,28 +44,28 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.1',
-    'version_id': '040725A',
-    'dies_at': datetime(2025, 9, 2, 23, 59)
+    'version_id': '080825A',
+    'dies_at': datetime(2025, 10, 8, 23, 59)
 }
 version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
 
-Response = HttpResponse
-ResponseHeader = HttpResponseHeader
-ResponseChunk = HttpResponseChunk
-Redirect = HttpRedirect
-EmptyResponse = EmptyHttpResponse
-Render = HttpRender
-APIResponse = HttpAPIResponse
-JSONResponse = HttpJSONResponse
-JSONAPIResponse = HttpJSONAPIResponse
+Response = utils.rename_class(HttpResponse, 'Response')
+ResponseHeader = utils.rename_class(HttpResponseHeader, 'ResponseHeader')
+ResponseChunk = utils.rename_class(HttpResponseChunk, 'ResponseChunk')
+Redirect = utils.rename_class(HttpRedirect, 'Redirect')
+EmptyResponse = utils.rename_class(EmptyHttpResponse, 'EmptyResponse')
+Render = utils.rename_class(HttpRender, 'Render')
+APIResponse = utils.rename_class(HttpAPIResponse, 'APIResponse')
+JSONResponse = utils.rename_class(HttpJSONResponse, 'JSONResponse')
+JSONAPIResponse = utils.rename_class(HttpJSONAPIResponse, 'JSONAPIResponse')
 
-HttpResponse = utils.make_deprecated(HttpResponse, Response)
-HttpRedirect = utils.make_deprecated(HttpRedirect, Redirect)
-EmptyHttpResponse = utils.make_deprecated(EmptyHttpResponse, EmptyResponse)
-HttpRender = utils.make_deprecated(HttpRender, Render)
-HttpAPIResponse = utils.make_deprecated(HttpAPIResponse, APIResponse)
-HttpJSONResponse = utils.make_deprecated(HttpJSONResponse, JSONResponse)
-HttpJSONAPIResponse = utils.make_deprecated(HttpJSONAPIResponse, JSONAPIResponse)
+Response = utils.make_deprecated(Response, HttpResponse)
+Redirect = utils.make_deprecated(Redirect, HttpRedirect)
+EmptyResponse = utils.make_deprecated(EmptyResponse, EmptyHttpResponse)
+Render = utils.make_deprecated(Render, HttpRender)
+APIResponse = utils.make_deprecated(APIResponse, HttpAPIResponse)
+JSONResponse = utils.make_deprecated(JSONResponse, HttpJSONResponse)
+JSONAPIResponse = utils.make_deprecated(JSONAPIResponse, HttpJSONAPIResponse)
 
 warnings.simplefilter('always', DeprecationWarning)
 

@@ -11,3 +11,5 @@ t/
 .idea/
 **/root/*
 example.py
+fullchain.pem
+privkey.pem

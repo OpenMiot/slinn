@@ -101,3 +101,14 @@ def representate(obj: any) -> bytes:
     try: return json.dumps({key:representate(obj.__dict__[key]).decode() for key in obj.__dict__.keys()}, ensure_ascii=False).encode()
     except Exception as e: print(e)
     return f'<{type(obj)} object at {id(obj)}>'
+
+
+def rename_class(cls, name):
+    new = type(cls)(
+        name,
+        cls.__bases__,
+        dict(cls.__dict__)
+    )
+    new.__qualname__ = new.__qualname__.replace(cls.__name__, name)
+    new.__name__ = name
+    return new
