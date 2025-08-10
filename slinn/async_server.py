@@ -126,7 +126,7 @@ class AsyncServer:
             try:
                 connection.settimeout(self.timeout)
                 data = bytearray()
-                while len(data) < self.max_bytes:
+                while len(data) < self.max_bytes and connection.fileno() != -1:
                     try:
                         b = await connection.recv(self.max_bytes_per_receive)
                         data += b
@@ -143,9 +143,9 @@ class AsyncServer:
                 request = AsyncRequest(self.loop, header, b'', client_address, connection, self)
                 content = data[1]
                 data = bytearray()
-                while len(data) < request.header['data'].get('Content-Length', 0):
+                while len(data) < int(request.header['data'].get('Content-Length', 0)):
                     try:
-                        b = await self.loop.sock_recv(connection, self.max_bytes_per_receive)
+                        b = await connection.recv(self.max_bytes_per_receive)
                         data += b
                     except (TimeoutError, socket.timeout):
                         break
@@ -201,7 +201,7 @@ class AsyncServer:
                     i = 0
                     while i < len(packages):
                         try:
-                            await self.loop.sock_sendall(connection, packages[i])
+                            await connection.send(packages[i])
                             i += 1
                         except TimeoutError:
                             continue

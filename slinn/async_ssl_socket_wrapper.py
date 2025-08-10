@@ -45,8 +45,9 @@ class AsyncSSLSocketWrapper:
     async def _feed_in_bio(self):
         try:
             data = await self.loop.sock_recv(self._sock, 16384)
-            if data:
-                self._in_bio.write(data)
+            if not data:
+                raise
+            self._in_bio.write(data)
         except BlockingIOError:
             pass
         except OSError as e:
@@ -54,7 +55,7 @@ class AsyncSSLSocketWrapper:
                 raise
 
     async def _flush_out_bio(self):
-        while self._out_bio.pending:
+        while self._out_bio.pending and self.fileno() != -1:
             data = self._out_bio.read()
             if data:
                 await self.loop.sock_sendall(self._sock, data)
@@ -106,12 +107,10 @@ class AsyncSSLSocketWrapper:
     async def close(self):
         try:
             if self._handshake_complete:
-                while True:
-                    try:
-                        await self._ssl_obj.unwrap()
-                        break
-                    except ssl.SSLWantReadError:
-                        await self._process_handshake_read()
-                await self._flush_out_bio()
+                try:
+                    self._ssl_obj.unwrap()
+                except ssl.SSLWantReadError:
+                    pass
+            await self._flush_out_bio()
         finally:
             self._sock.close()

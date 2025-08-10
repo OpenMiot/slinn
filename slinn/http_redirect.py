@@ -8,4 +8,4 @@ class HttpRedirect(HttpResponse):
     """
     
     def __init__(self, location: str) -> None:
-        super().__init__('', [('Location', location)], status='307 Temporary Redirect')
+        HttpResponse.__init__(self, '', [('Location', location)], status='307 Temporary Redirect')

@@ -5,7 +5,7 @@ import slinn
 class HttpResponseHeader(HttpResponseChunk):
     def __init__(self, data: list[tuple] = None, status: str = '200 OK',
                  content_type: str = 'text/plain; charset=utf-8') -> None:
-        super().__init__('')
+        HttpResponseChunk.__init__(self, '')
         self.data = [('Content-Type', content_type), ('Server', slinn.version)] + (data if data is not None else [])
         self.status = status
 

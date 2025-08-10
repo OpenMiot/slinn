@@ -24,7 +24,7 @@ class HttpRender(HttpResponse):
                 return 0
             else:
                 return b
-        use_gzip = True
+        #use_gzip = True
         if htrf.handles == []:
             with open(self.file_path, 'rb') as file:
                 return HttpResponse(file.read(), data=self.data).make(use_gzip=use_gzip)
