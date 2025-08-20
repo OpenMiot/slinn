@@ -1,4 +1,5 @@
 from .exceptions import HandlerNotFound
+from . import Handle, AnyFilter
 
 
 class HCDispatcher:
@@ -12,7 +13,7 @@ class HCDispatcher:
 
     def __getitem__(self, key: int) -> callable:
         if str(key) in self.functions.keys():
-            return self.functions[str(key)]
+            return Handle(AnyFilter, self.functions[str(key)])
         raise HandlerNotFound(f'HTTP-code {key} does not exist')
 
     def __call__(self, code: int) -> callable:

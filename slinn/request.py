@@ -15,42 +15,7 @@ class Request:
             result[key.strip()] = value.strip()
         return result
 
-    @staticmethod
-    def parse_http_body(http_body: bytes):
-      files = [File()]
-      BGNs = [b'-----------------------------', b'------WebKitFormBoundary']
-      END = b'--'
-      binary = 0
-      for line in http_body.split(b'\r\n'):
-        if binary != 2:
-          if line == b'':
-            binary += 1
-          elif b':' in line:
-            key, value = line.split(b':')[0].decode(), b':'.join(line.split(b':')[1:])
-            files[-1].header[key.strip()] = value.strip()
-          elif files[-1].id is None:
-            if line.startswith(BGNs[0]):
-              files[-1].id = line[len(BGNs[0]):]
-            elif line.startswith(BGNs[1]):
-              files[-1].id = line[len(BGNs[1]):]
-          continue
-        if files[-1].id is not None:
-          if line.startswith(BGNs[0]) and line.endswith(END) and line[len(BGNs[0]):-len(END)] == files[-1].id \
-             or line.startswith(BGNs[1]) and line.endswith(END) and line[len(BGNs[1]):-len(END)] == files[-1].id:
-            files[-1].data = bytes(files[-1].data[:-2])
-            files.append(File())
-            binary = 0
-            continue
-        files[-1].data += line + b'\r\n'
-      return {
-        'payload': b'',
-        'files': files[:-1]
-      } if len(files[:-1]) != 0 else {
-        'payload': http_body,
-        'files': []
-      }
-
-    def __init__(self, header: str, body: bytes, client_address: tuple[str, int], connection, server, htrf: FTDispatcher = FTDispatcher()) -> None:
+    def __init__(self, header: str, client_address: tuple[str, int], connection, server, htrf: FTDispatcher = FTDispatcher()) -> None:
         def get_args(text):
             return {} if text == '' else {pair.split('=')[0]: '='.join(pair.split('=')[1:]) for pair in text.split('&')}
 
@@ -58,8 +23,8 @@ class Request:
         self.header = {'method': self.type[0], 'link': ' '.join(self.type[1:-1]), 'ver': self.type[-1],
                        'data': {'user-agent': '', 'Accept': '', 'Accept-Encoding': '', 'Accept-Language': ''}}
         header = self.parse_http_header(header)
-        self.payload = self.parse_http_body(body)['payload']
-        self.files = self.parse_http_body(body)['files']
+        self.payload = b''
+        self.files = []
         self.header['data'].update(header)
         self.ip, self.port = client_address[:2]
         self.protocol = self.header['ver'].split('/')[0]
@@ -92,7 +57,7 @@ class Request:
         made = utils.optional(response_class(*args, **kwargs).make, version = self.version, htrf = self.htrf)
         if made is None:
             return
-        self.connection.sendall(made)
+        self.connection.send(made)
 
     def recv(self, n_bytes: int) -> bytes:
         return self.connection.recv(n_bytes)

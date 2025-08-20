@@ -26,4 +26,4 @@ class AsyncRequest(Request):
                 continue
 
     async def recv(self, n_bytes: int) -> bytes:
-        return await self.loop.sock_recv(self.connection, n_bytes)
+        return await self.connection.recv(n_bytes)

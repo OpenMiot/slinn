@@ -31,6 +31,8 @@ from .websocket_opcodes import WebSocketOpcodes
 from .websocket_handshake import WebSocketHandshake
 from .websocket_frame import WebSocketFrame
 from .async_websocket_connection import AsyncWebSocketConnection
+from .socket_wrapper import SocketWrapper
+from .ssl_socket_wrapper import SSLSocketWrapper
 from .async_socket_wrapper import AsyncSocketWrapper
 from .async_ssl_socket_wrapper import AsyncSSLSocketWrapper
 from .server import Server
@@ -44,8 +46,8 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.1',
-    'version_id': '110825A',
-    'dies_at': datetime(2025, 11, 8, 23, 59)
+    'version_id': '200825A',
+    'dies_at': datetime(2025, 10, 20, 23, 59)
 }
 version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
 

@@ -1,5 +1,6 @@
 import re
 import urllib.parse
+import html
 from . import utils
 
 
@@ -25,10 +26,6 @@ class Preprocessor:
                 except AttributeError:
                     return None
         return current
-
-    @staticmethod
-    def escape_html(text):
-        return text.replace('<', '&lt;').replace('>', '&gt;').replace('&', '&amp;')
     
     def __init__(self, open_quote: str = '<%', close_quote: str = '%>') -> None:
         self.open_quote = open_quote
@@ -58,21 +55,14 @@ class Preprocessor:
             loop = loop.replace(header, '', 1)
             looped = ""
             for it in data[iterable]:
-                #print(it)
                 ll = loop
                 ll = self.replace_conditions(ll, {iterator: it})
-                #print(fr'{self.open_quote}\s*{iterator}(\.\w+)?\s*{self.close_quote}', ll.encode(), re.findall(fr'{self.open_quote}\s*{iterator}(\.\w+)?\s*{self.close_quote}', ll, re.MULTILINE))
                 while zai := re.search(fr'{self.open_quote}\s*{iterator}[\.\w]+?\s*{self.close_quote}', ll):
                     zai = zai.group(0)
                     i = zai.replace('<%', '', 1).replace('%>', '', 1).strip().removeprefix(iterator+'.')
-                    #print('zai', zai, 'loop', loop.encode())
-                    #ll = ll.replace(zai, utils.representate(getattr(it, i, it)).decode(), 1)
                     lolkek = self.get_nested_value(it, i)
                     ll = ll.replace(zai, utils.representate(lolkek if lolkek else it).decode(), 1)
-                    #print('ll',ll, i)
-                    #print(i)
                 looped += ll
-            #del data[iterable]
             text = text.replace(zaloop, looped)
         text = self.replace_conditions(text, data)
         for imp in re.findall(fr'{self.open_quote}\s*import\s+.+\s*{self.close_quote}', text):
@@ -80,11 +70,11 @@ class Preprocessor:
             with open(filename, 'r') as f:
                 text = text.replace(imp, self.replace(f.read(), data))
         for key in data:
-            text = re.sub(self.pattern(r'htmlsafe\s+' + key), self.escape_html(utils.representate(data[key]).decode()), text)
+            text = re.sub(self.pattern(r'htmlsafe\s+' + key), html.escape(utils.representate(data[key]).decode()).replace('\\', '\\\\'), text)
         for key in data:
-            text = re.sub(self.pattern(r'urlsafe\s+' + key), urllib.parse.quote_plus(utils.representate(data[key]).decode()), text)
+            text = re.sub(self.pattern(r'urlsafe\s+' + key), urllib.parse.quote_plus(utils.representate(data[key]).decode()).replace('\\', '\\\\'), text)
         for key in data:
-            text = re.sub(self.pattern(key), utils.representate(self.get_nested_value(data, key)).decode(), text)
+            text = re.sub(self.pattern(key), utils.representate(self.get_nested_value(data, key)).decode().replace('\\', '\\\\'), text)
         return text
 
     def preprocess(self, text: str, data: dict) -> str:

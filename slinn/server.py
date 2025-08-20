@@ -1,10 +1,11 @@
 from typing import Any, Callable
-from . import Request, Address, HCDispatcher, FTDispatcher, utils
+from . import Request, Address, HCDispatcher, FTDispatcher, SocketWrapper, SSLSocketWrapper, utils, exceptions
 import socket
 import ssl
 import os
 import logging
 import traceback
+import warnings
 
 
 class Server:
@@ -81,73 +82,80 @@ class Server:
                 self.server_socket.close()
             os._exit(0)
 
-    def handle_request(self, client_socket, client_address):
+    def handle_request(self, connection, client_address):
         try:
             self._func(self)
-            if self.ssl:
-                client_socket = self.ssl_context.wrap_socket(client_socket, server_side=True,
-                                                             do_handshake_on_connect=True, suppress_ragged_eofs=True)
-            request: Request
+            connection = SSLSocketWrapper(connection, self.ssl_context) if self.ssl else SocketWrapper(connection)
             try:
-                client_socket.settimeout(self.timeout)
+                connection.settimeout(self.timeout)
                 data = bytearray()
-                while len(data) < self.max_bytes:
+                while len(data) < self.max_bytes and b'\r\n\r\n' not in data:
                     try:
-                        b = client_socket.recv(self.max_bytes_per_receive)
+                        b = connection.recv(self.max_bytes_per_receive)
                         data += b
-                    except TimeoutError:
+                    except (TimeoutError, socket.timeout):
                         break
-                    except socket.timeout:
-                        break
-
                 data = data.split(b'\r\n\r\n')
                 header = data[0].decode()
-                content = b'\r\n\r\n'.join(data[1:])
-
                 if header == '':
                     return
-                request = Request(header, content, client_address, client_socket, self, self.htrf)
+                request = Request(header, client_address, connection, self)
+                request.htrf = self.htrf
                 self.logger.info(repr(request))
+                request.connection.paste(b'\r\n\r\n'.join(data[1:]))
             except KeyError:
                 return self.logger.info('Got KeyError, probably invalid request. Ignore')
             except UnicodeDecodeError:
                 return self.logger.info('Got UnicodeDecodeError, probably invalid request. Ignore')
             except ConnectionResetError:
                 return self.logger.info('Connection reset by client')
-            except OSError as e:
+            except OSError:
                 return self.logger.info('Connection closed')
             for dispatcher in self.dispatchers:
                 if True in [utils.restartswith(request.host, host) for host in dispatcher.hosts]:
                     if self.smart_navigation:
                         sizes = [handle.filter.size(request.link, request.method) for handle in dispatcher.handles]
                         if sizes:
-                            if self.answer_request(client_socket, dispatcher.handles[sizes.index(max(sizes))], request,
-                                                   data, header, content):
+                            if self.answer_request(connection, dispatcher.handles[sizes.index(max(sizes))], request,
+                                                   data, header):
                                 return
                     else:
                         for handle in dispatcher.handles:
-                            if self.answer_request(client_socket, handle, request, data, header, content):
+                            if self.answer_request(connection, handle, request, data, header):
                                 return
+            try:
+                return self.answer_request(connection, self.hcdp[404], request, data, header)
+            except exceptions.HandlerNotFound:
+                warnings.warn('Error code 404 `s handler is not defined', exceptions.Handler404NotFound)
+            connection.close()
         except Exception as exception:
             self.logger.warning(f'During handling request, an {exception} has occured')
             self.logger.warning(traceback.format_exc())
             self.reload(*self.dispatchers)
+            try:
+                try:
+                    return self.answer_request(connection, self.hcdp[500], request, data, header)
+                except UnboundLocalError:
+                    return connection.close()
+            except exceptions.HandlerNotFound:
+                warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
+            connection.close()
 
-    def answer_request(self, client_socket, handle, request, http_data, http_header, http_content):
+    def answer_request(self, client_socket, handle, request, http_data, http_header):
         if handle.filter.check(request.link, request.method):
             if utils.check_socket(client_socket):
                 response = utils.optional(handle.function,
                                           request=request,
                                           http_data=http_data,
                                           http_header=http_header,
-                                          http_content=http_content,
+                                          http_content=b'',
                                           client_socket=client_socket,
                                           server=self,
                                           **handle.args(request))
                 if type(response) is int:
                     handle = self.hcdp(response)
                     if handle is not None:
-                        return self.answer_request(client_socket, handle, request, http_data, http_header, http_content)
+                        return self.answer_request(client_socket, handle, request, http_data, http_header)
                     self.logger.error(f'Error code {response} `s handler is not defined')
                 elif response is not None:
                     buffer = utils.optional(response.make, version=request.version, type=request.version, gzip=False,

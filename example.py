@@ -4,6 +4,7 @@ from slinn.utils import optional
 import logging
 import os
 import asyncio
+import socket
 
 
 logging.basicConfig(level=logging.INFO)
@@ -76,6 +77,40 @@ async def ws(request):
 async def path(user_id, lolkek=None):
     return HttpResponse(str(user_id) + str(lolkek))
 
+@dp.post('upload2')
+async def upload(request):
+    data = bytearray()
+    request.connection.settimeout(0.3)
+    while len(data) < int(request.header['data'].get('Content-Length', 0)):
+        print(data)
+        try:
+            b = await request.recv(12800)
+            data += b
+            print(data)
+        except (TimeoutError, socket.timeout):
+            print('Timed out!')
+            break
+    print('data:', data)
+    print('files:', request.files)
+    await request.respond(HttpResponse, data)
+
+@dp.post('upload')
+def upload(request):
+    data = bytearray()
+    while len(data) < int(request.header['data'].get('Content-Length', 0)):
+        print(data)
+        try:
+            b = request.recv(128)
+            data += b
+            print(data)
+        except (TimeoutError, socket.timeout):
+            print('Timed out!')
+            break
+    print('data:', data)
+    print('files:', request.files)
+    request.respond(HttpResponse, data)
+
+
 import inspect
 print(inspect.signature(path).parameters['kwargs'].kind)
 
@@ -86,5 +121,7 @@ with storage('index.html', 'w') as file:
 
 print([handle.filter._pattern for handle in dp.handles])
 #asyncio.run(AsyncServer(dp, ssl_fullchain='localhost.crt', ssl_key='localhost.key').listen(Address(8080)))
-asyncio.run(AsyncServer(dp, ssl_fullchain='fullchain.pem', ssl_key='privkey.pem').listen(Address(8080)))
+#asyncio.run(AsyncServer(dp, ssl_fullchain='fullchain.pem', ssl_key='privkey.pem').listen(Address(8080)))
+#asyncio.run(AsyncServer(dp).listen(Address(8080, host="192.168.50.68")))
 #Server(dp, ssl_fullchain='localhost.crt', ssl_key='localhost.key').listen(Address(8080))
+Server(dp).listen(Address(8080, host="192.168.50.68"))

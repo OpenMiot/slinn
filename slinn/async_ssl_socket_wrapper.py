@@ -18,6 +18,8 @@ class AsyncSSLSocketWrapper:
         )
         self._handshake_complete = False
 
+        self.buffer = bytearray()
+
     async def do_handshake(self):
         while not self._handshake_complete:
             try:
@@ -61,6 +63,15 @@ class AsyncSSLSocketWrapper:
                 await self.loop.sock_sendall(self._sock, data)
 
     async def recv(self, n_bytes):
+        if len(self.buffer) > 0:
+            if len(self.buffer) > n_bytes:
+                data = self.buffer[:n_bytes]
+                self.buffer = self.buffer[n_bytes:]
+                return data
+            else:
+                data = self.buffer
+                self.buffer = bytearray()
+                return data
         if not self._handshake_complete:
             await self.do_handshake()
 
@@ -91,6 +102,9 @@ class AsyncSSLSocketWrapper:
                 await self._process_handshake_read()
             except ssl.SSLWantWriteError:
                 await self._process_handshake_write()
+
+    def paste(self, data):
+        self.buffer += data
 
     def settimeout(self, timeout):
         self._sock.settimeout(timeout)

@@ -5,7 +5,7 @@ import re
 
 class int(int): REGEXP = r'[0-9]+'
 class float(float): REGEXP = r'[0-9\.]+'
-class str(str): REGEXP = r'\w+'
+class str(str): REGEXP = r'[\w ]+'
 
 
 class IPath(Filter):

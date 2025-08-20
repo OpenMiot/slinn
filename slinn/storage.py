@@ -12,6 +12,9 @@ class Storage:
     def __call__(self, path, filemode):
         return StorageIO(self.root + '/' + path, filemode)
 
+    def isfile(self, path):
+        return os.path.isfile(self.root + '/' + path)
+
 
 class StorageIO:
     def __init__(self, path, filemode):
