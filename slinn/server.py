@@ -15,7 +15,7 @@ class Server:
 
     def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
                  ssl_key: str = None, timeout: float = 0.03, max_bytes_per_receive: int = 4096,
-                 max_bytes: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
+                 max_header_size: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
                  hcdp: HCDispatcher = HCDispatcher(), htrf: FTDispatcher = FTDispatcher()) -> None:  # type: ignore
         self.dispatchers = dispatchers
         self.smart_navigation = smart_navigation
@@ -26,7 +26,7 @@ class Server:
         self.thread = None
         self.timeout = timeout
         self.max_bytes_per_receive = max_bytes_per_receive
-        self.max_bytes = max_bytes
+        self.max_header_size = max_header_size
         self._func = _func if _func is not None else lambda server: None
         self.logger = logger if logger is not None else logging.getLogger('slinn')
         self.hcdp = hcdp
@@ -89,7 +89,7 @@ class Server:
             try:
                 connection.settimeout(self.timeout)
                 data = bytearray()
-                while len(data) < self.max_bytes and b'\r\n\r\n' not in data:
+                while len(data) < self.max_header_size and b'\r\n\r\n' not in data:
                     try:
                         b = connection.recv(self.max_bytes_per_receive)
                         data += b

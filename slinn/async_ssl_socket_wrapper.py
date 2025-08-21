@@ -1,10 +1,11 @@
 import ssl
 import errno
 import select
+import asyncio
 
 
 class AsyncSSLSocketWrapper:
-    def __init__(self, sock, ssl_context, loop):
+    def __init__(self, sock, ssl_context, loop, timeout=None):
         self._sock = sock
         self.loop = loop
         self._sock.setblocking(False)
@@ -18,6 +19,7 @@ class AsyncSSLSocketWrapper:
         )
         self._handshake_complete = False
 
+        self._timeout = 0 if timeout is None else timeout
         self.buffer = bytearray()
 
     async def do_handshake(self):
@@ -41,7 +43,7 @@ class AsyncSSLSocketWrapper:
     async def _process_handshake_write(self):
         await self._flush_out_bio()
 
-        if self._sock in select.select([self._sock], [], [], 0)[0]:
+        if self._sock in select.select([self._sock], [], [], self._timeout)[0]:
             await self._feed_in_bio()
 
     async def _feed_in_bio(self):
@@ -82,9 +84,9 @@ class AsyncSSLSocketWrapper:
                     return b''
                 return data
             except ssl.SSLWantReadError:
-                await self._process_handshake_read()
+                await asyncio.wait_for(self._process_handshake_read(), self._timeout)
             except ssl.SSLWantWriteError:
-                await self._process_handshake_write()
+                await asyncio.wait_for(self._process_handshake_write(), self._timeout)
             except ssl.SSLZeroReturnError:
                 return b''
 
@@ -104,10 +106,11 @@ class AsyncSSLSocketWrapper:
                 await self._process_handshake_write()
 
     def paste(self, data):
-        self.buffer += data
+        self.buffer = data + self.buffer
 
     def settimeout(self, timeout):
         self._sock.settimeout(timeout)
+        self._timeout = timeout
 
     def setblocking(self, blocking):
         self._sock.setblocking(blocking)

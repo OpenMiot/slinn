@@ -23,7 +23,7 @@ class AsyncServer:
     def __init__(self, *dispatchers: tuple[Any, ...], smart_navigation: bool = True, ssl_fullchain: str = None,
                  # type: ignore
                  ssl_key: str = None, timeout: float = 0.03, max_bytes_per_receive: int = 4096,
-                 max_bytes: int = 4294967296, _func=lambda server: None, logger: logging.Logger = logging.getLogger(),
+                 max_header_size: int = 4294967296, _func=lambda server: None, logger: logging.Logger = logging.getLogger(),
                  hcdp: HCDispatcher = HCDispatcher(), htrf: FTDispatcher = FTDispatcher()) -> None:  # type: ignore
         self.dispatchers = dispatchers
         self.smart_navigation = smart_navigation
@@ -34,7 +34,7 @@ class AsyncServer:
         self.thread = None
         self.timeout = timeout
         self.max_bytes_per_receive = max_bytes_per_receive
-        self.max_bytes = max_bytes
+        self.max_header_size = max_header_size
         self._func = _func
         self.logger = logger
         self.hcdp = hcdp
@@ -110,11 +110,11 @@ class AsyncServer:
             try:
                 connection.settimeout(self.timeout)
                 data = bytearray()
-                while len(data) < self.max_bytes and b'\r\n\r\n' not in data:
+                while len(data) < self.max_header_size and b'\r\n\r\n' not in data:
                     try:
                         b = await connection.recv(self.max_bytes_per_receive)
                         data += b
-                    except (TimeoutError, socket.timeout):
+                    except (TimeoutError, socket.timeout, asyncio.exceptions.TimeoutError):
                         break
                 data = data.split(b'\r\n\r\n')
                 header = data[0].decode()

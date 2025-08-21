@@ -4,7 +4,7 @@ class AsyncSocketWrapper:
     def __init__(self, sock, loop, timeout=None):
         self._sock = sock
         self.loop = loop
-        self.timeout = timeout
+        self._timeout = timeout
         self.buffer = bytearray()
 
     async def recv(self, n_bytes):
@@ -18,8 +18,8 @@ class AsyncSocketWrapper:
                 self.buffer = bytearray()
                 return data
         try:
-            if self.timeout is not None:
-                return await asyncio.wait_for(self.loop.sock_recv(self._sock, n_bytes), self.timeout)
+            if self._timeout is not None:
+                return await asyncio.wait_for(self.loop.sock_recv(self._sock, n_bytes), self._timeout)
             return await self.loop.sock_recv(self._sock, n_bytes)
         except (asyncio.TimeoutError, TimeoutError):
             raise socket.timeout("recv timed out")
@@ -28,11 +28,11 @@ class AsyncSocketWrapper:
         await self.loop.sock_sendall(self._sock, data)
 
     def paste(self, data):
-        self.buffer += data
+        self.buffer = data + self.buffer
 
     def settimeout(self, timeout):
         self._sock.settimeout(timeout)
-        self.timeout = timeout
+        self._timeout = timeout
 
     def setblocking(self, blocking):
         self._sock.setblocking(blocking)

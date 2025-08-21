@@ -11,8 +11,8 @@ from .any_filter import AnyFilter
 from .dispatcher import Dispatcher
 from .hcdispatcher import HCDispatcher
 from .ftdispatcher import FTDispatcher
-from .request import Request
-from .async_request import AsyncRequest
+from .request import Request, RequestBody
+from .async_request import AsyncRequest, AsyncRequestBody
 from .i_path import IPath
 from .path import Path
 from .tcp_response_chunk import TCPResponseChunk
@@ -46,8 +46,8 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.1',
-    'version_id': '200825A',
-    'dies_at': datetime(2025, 10, 20, 23, 59)
+    'version_id': '220825A',
+    'dies_at': datetime(2025, 10, 22, 23, 59)
 }
 version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
 

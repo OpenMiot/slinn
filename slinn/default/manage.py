@@ -175,7 +175,7 @@ def main():
             host = cfg['host']
             timeout = float(cfg['timeout'])
             max_bytes_per_receive = int(cfg['max_bytes_per_receive'])
-            max_bytes = int(cfg['max_bytes'])
+            max_header_size = int(cfg['max_header_size'])
             smart_navigation = cfg['smart_navigation']
             ssl_fullchain, ssl_key = None, None
             if 'fullchain' in cfg['ssl'].keys() and 'key' in cfg['ssl'].keys():
@@ -246,6 +246,7 @@ def reloader(server):
             logging.basicConfig(filename=f'{name}.journal.log', level=logging.INFO)
 
             print('Starting server...')
+            print(f'{BOLD}Press CTRL+C to quit{RESET}')
             start = ';'.join(load_imports(apps, debug)) + reloader + '\n'.join([line.strip() for line in f"""
 			from htrf import htrf
 			server=Server(
@@ -255,7 +256,8 @@ def reloader(server):
 				ssl_key = {ssl_key},
 				timeout = {timeout},
 				max_bytes_per_receive = {max_bytes_per_receive},
-				max_bytes = {max_bytes}, _func=reloader,
+				max_header_size = {max_header_size},
+				_func=reloader,
 				htrf = htrf)
 			server.listen(Address({port}, "{host}"))
 			""".split('\n')])

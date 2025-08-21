@@ -19,7 +19,7 @@ class SocketWrapper:
         return self._sock.send(data)
 
     def paste(self, data):
-        self.buffer += data
+        self.buffer = data + self.buffer
 
     def settimeout(self, timeout):
         return self._sock.settimeout(timeout)
