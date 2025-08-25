@@ -148,7 +148,7 @@ class AsyncServer:
                 return await self.answer_request(connection, self.hcdp[404], request, data, header)
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 404 `s handler is not defined', exceptions.Handler404NotFound)
-            await connection.close()
+            connection.close()
         except Exception as exception:
             self.logger.warning(f'During handling request, an {exception} has occurred')
             self.logger.warning(traceback.format_exc())
@@ -156,10 +156,10 @@ class AsyncServer:
             try:
                 return await self.answer_request(connection, self.hcdp[500], request, data, header)
             except UnboundLocalError:
-                return await connection.close()
+                return connection.close()
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
-            await connection.close()
+            connection.close()
 
     async def answer_request(self, connection, handle, request, http_data, http_header):
         if not handle.filter.check(request.link, request.method):
@@ -191,5 +191,5 @@ class AsyncServer:
                     i += 1
                 except TimeoutError:
                     continue
-        await connection.close()
+        connection.close()
         return True

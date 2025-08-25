@@ -1,6 +1,7 @@
 import asyncio, socket
 from . import SocketWrapper
 
+
 class AsyncSocketWrapper(SocketWrapper):
     def __init__(self, sock, loop):
         SocketWrapper.__init__(self, sock)
@@ -30,6 +31,3 @@ class AsyncSocketWrapper(SocketWrapper):
     def settimeout(self, timeout):
         self._sock.settimeout(timeout)
         self._timeout = timeout
-
-    async def close(self):
-        self._sock.close()
