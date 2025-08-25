@@ -6,4 +6,4 @@ class SSLSocketWrapper(SocketWrapper):
         SocketWrapper.__init__(self, sock)
         self.ssl_context = ssl_context
         self._sock = self.ssl_context.wrap_socket(self._sock, server_side=True,
-                                            do_handshake_on_connect=True, suppress_ragged_eofs=True)
+                                                  do_handshake_on_connect=True, suppress_ragged_eofs=True)

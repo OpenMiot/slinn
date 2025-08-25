@@ -154,10 +154,9 @@ class AsyncServer:
             self.logger.warning(traceback.format_exc())
             self.reload(*self.dispatchers)
             try:
-                try:
-                    return await self.answer_request(connection, self.hcdp[500], request, data, header)
-                except UnboundLocalError:
-                    return await connection.close()
+                return await self.answer_request(connection, self.hcdp[500], request, data, header)
+            except UnboundLocalError:
+                return await connection.close()
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
             await connection.close()
