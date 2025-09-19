@@ -1,4 +1,4 @@
-from . import Request, RequestBody, utils
+from . import Request, RequestBody, AsyncWebSocketConnection, utils
 import asyncio
 import socket
 
@@ -29,6 +29,11 @@ class AsyncRequest(Request):
 
     async def recv(self, n_bytes: int) -> bytes:
         return await self.connection.recv(n_bytes)
+    
+    async def WebSocket(self):
+        conn = AsyncWebSocketConnection(self)
+        await conn.handshake()
+        return conn
 
 class AsyncRequestBody(RequestBody):
     async def recv(self, n_bytes):

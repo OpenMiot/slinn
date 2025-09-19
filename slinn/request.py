@@ -1,6 +1,6 @@
+from . import File, WebSocketConnection, FTDispatcher, utils
 import urllib.parse
 import socket
-from . import File, FTDispatcher, utils
 
 
 class Request:
@@ -68,6 +68,11 @@ class Request:
 
     def recv(self, n_bytes: int) -> bytes:
         return self.connection.recv(n_bytes)
+    
+    def WebSocket(self):
+        conn = WebSocketConnection(self)
+        conn.handshake()
+        return conn
 
 
 class RequestBody:

@@ -20,7 +20,7 @@ class AsyncServer:
             self.filter = filter
             self.function = function
 
-    def __init__(self, *dispatchers: tuple[Any, ...], smart_navigation: bool = True, ssl_fullchain: str = None,
+    def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
                  # type: ignore
                  ssl_key: str = None, timeout: float = 0.03, max_bytes_per_receive: int = 4096,
                  max_header_size: int = 4294967296, _func=lambda server: None, logger: logging.Logger = logging.getLogger(),

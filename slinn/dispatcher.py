@@ -1,14 +1,14 @@
 from __future__ import annotations
-from . import Handle, Filter, LinkFilter
+from . import Handle, Filter, LinkFilter, Path
 
 
 class Dispatcher:
 
     """
-    Class for handling requests
+    Class for handling requests 
     """
     
-    def __init__(self, *hosts: tuple) -> None:
+    def __init__(self, *hosts: str) -> None:
         self.handles = []
         self.hosts = hosts if hosts != () else ('.*', )
 
@@ -22,5 +22,6 @@ class Dispatcher:
     def static(self, link: str, http_response, *args, **kwargs) -> Dispatcher:
         async def handler():
             return http_response(*args, **kwargs)
-        self.handles.append(Handle(LinkFilter(link), handler))
+        _path = Path(link)
+        self.handles.append(Handle(_path, handler, _path.args))
         return self

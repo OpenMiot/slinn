@@ -1,4 +1,5 @@
-from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, AsyncRequest, HttpResponseChunk, utils
+from __future__ import annotations
+from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, HttpResponseChunk, utils
 from .exceptions import NotAWebSocketConnection
 
 
@@ -44,10 +45,10 @@ class AsyncWebSocketConnection:
         payload_len = data[1] & 127
         if payload_len == 126:
             data += await self.request.recv(2)
-            payload_len = data[2:4]
+            payload_len = int.from_bytes(data[2:4])
         elif payload_len == 127:
             data += await self.request.recv(4)
-            payload_len = data[2:6]
+            payload_len = int.from_bytes(data[2:6])
         if data[1] & 128:
             data += await self.request.recv(4)
         if payload_len < 126:

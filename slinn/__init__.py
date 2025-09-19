@@ -8,16 +8,23 @@ from .preprocessor import Preprocessor
 from .filter import Filter
 from .link_filter import LinkFilter
 from .any_filter import AnyFilter
+from .i_path import IPath
+from .path import Path
 from .dispatcher import Dispatcher
 from .hcdispatcher import HCDispatcher
 from .ftdispatcher import FTDispatcher
-from .request import Request, RequestBody
-from .async_request import AsyncRequest, AsyncRequestBody
-from .i_path import IPath
-from .path import Path
 from .tcp_response_chunk import TCPResponseChunk
 from .http_response_chunk import HttpResponseChunk
 from .http_response_header import HttpResponseHeader
+from .websocket_opcodes import WebSocketOpcodes
+from .websocket_handshake import WebSocketHandshake
+from .websocket_frame import WebSocketFrame
+from .websocket_connection import WebSocketConnection
+from .async_websocket_connection import AsyncWebSocketConnection
+from .websocket_group import WebSocketGroup
+from .async_websocket_group import AsyncWebSocketGroup
+from .request import Request, RequestBody
+from .async_request import AsyncRequest, AsyncRequestBody
 from .http_response import HttpResponse
 from .http_redirect import HttpRedirect
 from .empty_http_response import EmptyHttpResponse
@@ -27,10 +34,6 @@ from .http_json_response import HttpJSONResponse
 from .http_json_api_response import HttpJSONAPIResponse
 from .sse_header import SSEHeader
 from .sse_event import SSEEvent
-from .websocket_opcodes import WebSocketOpcodes
-from .websocket_handshake import WebSocketHandshake
-from .websocket_frame import WebSocketFrame
-from .async_websocket_connection import AsyncWebSocketConnection
 from .socket_wrapper import SocketWrapper
 from .ssl_socket_wrapper import SSLSocketWrapper
 from .async_socket_wrapper import AsyncSocketWrapper
@@ -46,8 +49,8 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.1',
-    'version_id': '250825B',
-    'dies_at': datetime(2025, 10, 25, 23, 59)
+    'version_id': '190925A',
+    'dies_at': datetime(2025, 11, 19, 23, 59)
 }
 version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
 

@@ -25,6 +25,8 @@ class AsyncSSLSocketWrapper(AsyncSocketWrapper):
             return
 
         def _data_received_callback(data):
+            if type(self.buffer) == bytes:
+                self.buffer = bytearray(self.buffer)
             self.buffer.extend(data)
             self._read_event.set()
 

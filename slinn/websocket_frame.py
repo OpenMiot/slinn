@@ -79,10 +79,10 @@ class WebSocketFrame:
 
         i = 2
         if payload_len == 126:
-            payload_len = data[2:4]
+            payload_len = int.from_bytes(data[2:4])
             i += 2
         elif payload_len == 127:
-            payload_len = data[2:6]
+            payload_len = int.from_bytes(data[2:6])
             i += 4
 
         if frame.mask:
@@ -123,10 +123,10 @@ class WebSocketFrame:
         payload_len = data[1] & 127
         if payload_len == 126:
             data += sock.recv(2)
-            payload_len = data[2:4]
+            payload_len = int.from_bytes(data[2:4])
         elif payload_len == 127:
             data += sock.recv(4)
-            payload_len = data[2:6]
+            payload_len = int.from_bytes(data[2:6])
         if data[1] & 128:
             data += sock.recv(4)
         if payload_len < 126:
