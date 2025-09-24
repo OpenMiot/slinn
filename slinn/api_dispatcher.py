@@ -47,3 +47,11 @@ class ApiDispatcher(Dispatcher):
             self.handles.append(Handle(_path, func, _path.args))
             return func
         return decorator
+    
+    def options(self, path: str = '/'):
+        """HTTP-OPTIONS Requests handler creator"""
+        def decorator(func):
+            _path = Path(self.prefix + path, ('OPTIONS',))
+            self.handles.append(Handle(_path, func, _path.args))
+            return func
+        return decorator
