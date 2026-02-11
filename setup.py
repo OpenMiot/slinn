@@ -17,6 +17,8 @@ setup(name='slinn',
             'slinn.tools',
             'slinn.tools.debugger',
             'slinn.tools.manage',
+            'slinn.defaults.app',
+            'slinn.defaults.project',
             'dexir'
       ] +
       [
