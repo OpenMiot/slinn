@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 def readme():
     with open('README.md', 'r') as f:
@@ -10,27 +10,12 @@ templates = ['firstrun', 'example']
 setup(name='slinn',
       version='2.3.2',
       description='A HTTPS and HTTP server framework',
-      packages=[
-            'slinn',
-            'slinn.templates',
-            'slinn.guides',
-            'slinn.tools',
-            'slinn.tools.debugger',
-            'slinn.tools.manage',
-            'slinn.defaults',
-            'slinn.defaults.app',
-            'slinn.defaults.project',
-            'dexir'
-      ] +
-      [
-            'slinn.templates.' + template
-            for template in templates
-      ],
+      packages=find_packages(),
       package_data={
-            'slinn.defaults.app': ['defaults/app/*.*'],
-            'slinn.defaults.project': ['defaults/project/*.*'],
-            'slinn.tools.debugger': ['tools/debugger/*.*'],
-            'slinn.tools.manage': ['tools/manage/*.*']
+            'slinn.defaults.app': ['*.*'],
+            'slinn.defaults.project': ['*.*'],
+            'slinn.tools.debugger': ['*.*'],
+            'slinn.tools.manage': ['*.*']
       } |
       {
             'slinn.templates.' + template: ['data/*.css', 'data/*.html', 'config.json']
@@ -42,7 +27,7 @@ setup(name='slinn',
       long_description=readme(),
       long_description_content_type='text/markdown',
       python_requires='>=3.9',
-      zip_safe=True,
+      zip_safe=False,
       entry_points={
             'console_scripts': [
                   'slinn = __main__:main'
