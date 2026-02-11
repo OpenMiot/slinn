@@ -1,19 +1,18 @@
 from setuptools import setup, find_packages
 
+
 def readme():
     with open('README.md', 'r') as f:
         return f.read()
-    
-templates = ['firstrun', 'example']
 
 
 setup(name='slinn',
       version='2.3.2',
-      description='A HTTPS and HTTP server framework',
+      description='An HTTP server framework',
       packages=find_packages(),
       include_package_data=True,
       author='Mark Radin',
-      author_email='mrybs2@gmail.com',
+      author_email='openmiot@gmail.com',
       url='https://wiki.miot.su/slinn',
       long_description=readme(),
       long_description_content_type='text/markdown',

@@ -1,6 +1,6 @@
 # Slinn
 
-**Slinn is a HTTP server framework**
+**Slinn is an HTTP server framework**
 
 ![License](https://img.shields.io/github/license/OpenMiot/slinn)
 
