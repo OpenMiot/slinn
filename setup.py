@@ -11,16 +11,7 @@ setup(name='slinn',
       version='2.3.2',
       description='A HTTPS and HTTP server framework',
       packages=find_packages(),
-      package_data={
-            'slinn.defaults.app': ['*.*'],
-            'slinn.defaults.project': ['*.*'],
-            'slinn.tools.debugger': ['*.*'],
-            'slinn.tools.manage': ['*.*']
-      } |
-      {
-            'slinn.templates.' + template: ['data/*.css', 'data/*.html', 'config.json']
-            for template in templates
-      },
+      include_package_data=True,
       author='Mark Radin',
       author_email='mrybs2@gmail.com',
       url='https://wiki.miot.su/slinn',
@@ -32,4 +23,5 @@ setup(name='slinn',
             'console_scripts': [
                   'slinn = __main__:main'
             ],
-      })
+      }
+)
