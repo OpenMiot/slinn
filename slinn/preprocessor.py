@@ -38,7 +38,7 @@ class Preprocessor:
             header = re.search(fr'{self.open_quote}\s*if\s*[\w\.]+\s*{self.close_quote}', condition).group(0)
             cond = header.replace(re.search(fr'{self.open_quote}\s*if\s*', header).group(0), '', 1).replace(re.search(fr'\s*{self.close_quote}', header).group(0), '', 1)
             if not self.get_nested_value(data, cond):
-                print(data, cond, self.get_nested_value(data, cond))
+                #print(data, cond, self.get_nested_value(data, cond))
                 text = text.replace(precondition, '', 1)
             else:
                 text = text.replace(precondition, condition.replace(header, '', 1), 1)

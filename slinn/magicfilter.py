@@ -74,8 +74,8 @@ class MagicObject(Filter, metaclass=MagicMeta):
 
     def check(self, target_obj):
         """Применяет записанные операции к целевому объекту."""
-        print('c2', target_obj)
-        print(target_obj.__dict__)
+        #print('c2', target_obj)
+        #print(target_obj.__dict__)
         current = target_obj
 
         for op in self._stacktrace:

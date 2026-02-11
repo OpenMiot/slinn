@@ -192,11 +192,11 @@ class AsyncServer(Server):
             )
 
     async def answer_request(self, connection, handle, request, http_data, http_header, max_requests):
-        print('a1', handle.filter)
+        #print('a1', handle.filter)
         if not handle.filter.check(request):
             return False
 
-        print('a2', handle.filter)
+        #print('a2', handle.filter)
         if connection.closed():
             return True
         cor = utils.optional(handle.function,

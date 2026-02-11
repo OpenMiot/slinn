@@ -1,3 +1,3 @@
 APP_CONFIG = {
-    'debug': False
+    'debug': True
 }

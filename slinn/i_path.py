@@ -20,7 +20,7 @@ class IPath(Filter):
             self.types[n] = t
 
     def args(self, request):
-        args = re.search(self.filter, request.full_link)
+        args = re.search(self.filter, request.link)
         if args is None:
             raise PatternDoesNotMatch(f'A path matching template "{self._pattern}", but path "{request.full_link}" was given"')
         args = args.groupdict()

@@ -13,7 +13,7 @@ class Filter:
         self.methods = methods
 
     def check(self, request: Request) -> bool:
-        print('c1', self.filter, request)
+        #print('c1', self.filter, request)
         return utils.rematcheswith(request.link, self.filter) and request.method.upper() in self.methods
 
     def size(self, request: Request) -> int:

@@ -1,6 +1,7 @@
 {
     "name": "Slinn",
     "async": true,
+    "server_class": "AsyncServer",
 
     "host": "localhost",
     "port": 8080,

@@ -59,6 +59,6 @@ class AsyncSocketWrapper(SocketWrapper):
         self._timeout = timeout
     
     def close(self):
-        print('closed')
+        #print('closed')
         if self._transport:
             self._transport.close()
