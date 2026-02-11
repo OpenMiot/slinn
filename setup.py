@@ -27,7 +27,10 @@ setup(name='slinn',
             for template in templates
       ],
       package_data={
-            'slinn': ['defaults/*.*']
+            'slinn.defaults.app': ['defaults/app/*.*'],
+            'slinn.defaults.project': ['defaults/project/*.*'],
+            'slinn.tools.debugger': ['tools/debugger/*.*'],
+            'slinn.tools.manage': ['tools/manage/*.*']
       } |
       {
             'slinn.templates.' + template: ['data/*.css', 'data/*.html', 'config.json']
