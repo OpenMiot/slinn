@@ -14,3 +14,4 @@ example.py
 fullchain.pem
 privkey.pem
 alt.py
+venv/

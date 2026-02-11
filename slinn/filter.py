@@ -1,3 +1,4 @@
+from __future__ import annotations
 from . import utils
 
 
@@ -11,13 +12,14 @@ class Filter:
         self.filter = _filter
         self.methods = methods
 
-    def check(self, text: str, method: str) -> bool:
-        return utils.rematcheswith(text, self.filter) and method.upper() in self.methods
+    def check(self, request: Request) -> bool:
+        print('c1', self.filter, request)
+        return utils.rematcheswith(request.link, self.filter) and request.method.upper() in self.methods
 
-    def size(self, text: str, method: str) -> int:
-        a = utils.min_restartswith_size(text, self.filter) if self.check(text, method) else 2147483647
-        b = utils.Bmin_restartswith_size(text, self.filter) if self.check(text, method) else 2147483647
-        if not self.check(text, method):
+    def size(self, request: Request) -> int:
+        a = utils.min_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
+        b = utils.Bmin_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
+        if not self.check(request):
             return -1
         elif a == 2147483647:
             return 0

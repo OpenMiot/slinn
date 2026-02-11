@@ -1,4 +1,4 @@
-from slinn import Dispatcher, LinkFilter, AnyFilter, HttpResponse
+from slinn import Dispatcher, LinkFilter, AnyFilter, HttpResponse, ApiDispatcher, Render
 import slinn
 
 def read(filename):
@@ -7,12 +7,18 @@ def read(filename):
     file.close()
     return data
  
-dp = Dispatcher()
+dp = ApiDispatcher()
 
-@dp(LinkFilter('styles.css'))
-def styles(request):
-    return HttpResponse(read('templates_data/firstrun/styles.css'))
+@dp.get('styles.css')
+def styles():
+    return Render('templates_data/firstrun/styles.css')
+
+@dp.get('favicon.ico')
+def favicon():
+    return Render('templates_data/firstrun/favicon.ico')
                        
-@dp(AnyFilter)
-def index(request):
-    return HttpResponse(read('templates_data/firstrun/slinn.html').replace('{% version %}', slinn.version.split()[2]), content_type='text/html')
+@dp.get()
+def index():
+    return Render('templates_data/firstrun/slinn.html', ppdata={
+        'version': slinn.version
+    })

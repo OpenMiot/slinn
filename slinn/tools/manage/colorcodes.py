@@ -1,0 +1,8 @@
+RED = '\u001b[31m'
+GREEN = '\u001b[32m'
+BLUE = '\u001b[34m'
+RESET = '\u001b[0m'
+BOLD = '\u001b[1m'
+GRAY = '\u001b[38;2;127;127;127m'
+STRIKE = '\u001b[9m'
+NONSTRIKE = '\u001b[29m'

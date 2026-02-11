@@ -36,7 +36,9 @@ class AsyncRequest(Request):
         return conn
 
 class AsyncRequestBody(RequestBody):
-    async def recv(self, n_bytes):
+    _request: AsyncRequest
+
+    async def recv(self, n_bytes: int) -> bytes:
         if self.end():
             self._pending = False
             return b''
@@ -48,26 +50,38 @@ class AsyncRequestBody(RequestBody):
         except (TimeoutError, socket.timeout):
             self._pending = False
             return b''
+        
+    async def receive(self) -> bytes:
+        return await self.recv(min(self._request.server.max_bytes_per_receive, self.until_end()))
 
-    async def getline(self):
+    async def getline(self) -> bytes:
         line = bytearray()
-        while b := await self.recv(self._request.server.max_bytes_per_receive):
+        while b := await self.receive():
             if b'\r\n' in b:
-                lines = b.split(b'\r\n')
+                lines = b.split(b'\r\n', 1)
                 line += lines[0]
                 self._request.connection.paste(b[len(lines[0])+2:])
                 break
             line += b
         return line
 
-    async def get(self):
+    async def get(self) -> bytes:
         data = bytearray()
-        while b := await self.recv(self._request.server.max_bytes_per_receive):
+        while b := await self.receive():
             data += b
         self._received = len(data)
         return bytes(data)
+    
+    async def form(self) -> dict:
+        if self._request.content_type[0] == 'application/x-www-form-urlencoded':
+            return Request.get_args((await self.getline()).decode())
+        return {}
+    
+    async def skip(self):
+        while not self.end():
+            await self.receive()
 
-    async def next_file_header(self):
+    async def next_file_header(self) -> dict:
         while line := await self.getline():
             if line == b'--' + self.files_boundary().encode():
                 break
@@ -76,7 +90,7 @@ class AsyncRequestBody(RequestBody):
             header.append(line)
         return Request.parse_http_header(b'\r\n'.join(header).decode())
 
-    async def next_file_body(self):
+    async def next_file_body(self) -> bytes:
         data = bytearray()
         while line := await self.getline():
             if line == b'--' + self.files_boundary().encode():
@@ -85,5 +99,5 @@ class AsyncRequestBody(RequestBody):
             if line == b'--' + self.files_boundary().encode() + b'--':
                 self._pending = False
                 break
-            data += line
+            data += line + b'\r\n'
         return bytes(data)

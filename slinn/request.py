@@ -8,67 +8,78 @@ class Request:
     Representation of HTTP request from client
     """
 
-    @staticmethod
-    def parse_http_header(http_header: str) -> dict:
-        result = {}
-        for line in http_header.split('\r\n'):
-            key, value = line.split(':')[0], ':'.join(line.split(':')[1:])
-            result[key.strip()] = value.strip()
-        return result
+    parse_http_header = staticmethod(lambda http_header: {
+        line.split(':')[0].strip(): ':'.join(line.split(':')[1:]).strip()
+        for line in http_header.split('\r\n')
+    })
+    get_args = staticmethod(lambda text: {
+        pair.split('=')[0]: '='.join(pair.split('=')[1:])
+        for pair in text.split('&')
+    })
 
-    def __init__(self, header: str, client_address: tuple[str, int], connection, server, htrf: FTDispatcher = FTDispatcher()) -> None:
-        def get_args(text):
-            return {} if text == '' else {pair.split('=')[0]: '='.join(pair.split('=')[1:]) for pair in text.split('&')}
+    def __init__(self, header: str, client_address: tuple[str, int], connection, server, htrf=None) -> None:
+        parse_header = lambda text: {pair.strip().split('=')[0]: '='.join(pair.split('=')[1:]) for pair in
+                                     text.split(',')}
 
         self.type = header.split('\r\n')[0].strip().split(' ')
-        self.header = {'method': self.type[0], 'link': ' '.join(self.type[1:-1]), 'ver': self.type[-1],
-                       'data': {'user-agent': '', 'Accept': '', 'Accept-Encoding': '', 'Accept-Language': ''}}
-        header = self.parse_http_header(header)
+        self.header = {
+            'method': self.type[0],
+            'link': ' '.join(self.type[1:-1]),
+            'ver': self.type[-1],
+            'data': self.parse_http_header(header)
+        }
         self.payload = b''
         self.files = []
-        self.header['data'].update(header)
         self.ip, self.port = client_address[:2]
         self.protocol = self.header['ver'].split('/')[0]
         self.method = self.header['method']
         self.version = self.header['ver']
         self.full_link = urllib.parse.unquote_plus(self.header['link'].replace('+', ' '))
         self.headers = self.header['data']
-        self.host = self.headers['Host']
+        host = self.headers.get('Host', '').split(':')
+        if len(host) == 0:
+            self.host = ''
+        elif len(host) == 1:
+            self.host = host[0].encode('ascii').decode('idna')
+        elif len(host) > 1:
+            self.host = ':'.join(host[:-1]).encode('ascii').decode('idna') + ':' + host[-1]
         self.user_agent = self.headers['User-Agent'] if 'User-Agent' in self.headers.keys() else \
-            self.headers['user-agent']
-        self.accept = self.headers['Accept'].split(',')
-        self.encoding = self.headers['Accept-Encoding'].split(',')
-        self.language = self.headers['Accept-Language'].split(',')
+            self.headers.get('user-agent', '')
+        self.accept = self.headers.get('Accept', '').split(',')
+        self.encoding = self.headers.get('Accept-Encoding', '').split(',')
+        self.language = self.headers.get('Accept-Language', '').split(',')
         self.link = self.full_link[:(self.full_link.index('?') if '?' in self.full_link else None)]
-        self.args = get_args(
+        self.args = self.get_args(
             self.full_link[(self.full_link.index('?') + 1 if '?' in self.full_link else len(self.full_link)):])
         self.cookies = {c.split('=')[0].strip(): c.split('=')[1] for c in
                         self.headers['Cookie'].split(';')} if 'Cookie' in self.headers else dict()
         self.content_length = int(self.headers.get('Content-Length', '0'))
-        self.content_type = self.headers.get('Content-Type', '').split(';')[0], dict([
+        self.content_type = self.headers.get('Content-Type', self.headers.get('content-type', '')).split(';')[0], dict([
             tuple(arg.strip().split('='))
-            for arg in self.headers.get('Content-Type', '').split(';')[1:]
+            for arg in self.headers.get('Content-Type', self.headers.get('content-type', '')).split(';')[1:]
         ])
+        self.keep_alive = parse_header(self.headers.get('Keep-Alive', ''))
 
         self.__str__ = self.__repr__
 
         self.connection = connection
         self.server = server
-        self.htrf = htrf
+        self.htrf = htrf or server.htrf or FTDispatcher()
         self.body = RequestBody(self)
 
     def __repr__(self) -> str:
         return f'[{self.method}] request {self.full_link} from {"" if "." in self.ip else "["}{self.ip}{"" if "." in self.ip else "]"}:{self.port} on {self.host}'
 
     def respond(self, response_class, *args, **kwargs) -> None:
-        made = utils.optional(response_class(*args, **kwargs).make, version = self.version, htrf = self.htrf)
+        kwargs['request'] = self
+        made = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
         if made is None:
             return
         self.connection.send(made)
 
     def recv(self, n_bytes: int) -> bytes:
         return self.connection.recv(n_bytes)
-    
+
     def WebSocket(self):
         conn = WebSocketConnection(self)
         conn.handshake()
@@ -76,18 +87,23 @@ class Request:
 
 
 class RequestBody:
-    def __init__(self, request):
+    def __init__(self, request: Request):
         self._request = request
         self._received = 0
         self._pending = True
 
-    def size(self):
+    def size(self) -> int:
         return self._request.content_length
 
-    def end(self):
-        return self._received >= self.size() or not self._pending
+    def end(self) -> bool:
+        return self.until_end() <= 0
 
-    def recv(self, n_bytes):
+    def until_end(self) -> int:
+        if not self._pending:
+            return 0
+        return self.size() - self._received
+
+    def recv(self, n_bytes: int) -> bytes:
         if self.end():
             self._pending = False
             return b''
@@ -100,28 +116,40 @@ class RequestBody:
             self._pending = False
             return b''
 
-    def getline(self):
+    def receive(self) -> bytes:
+        return self.recv(min(self._request.server.max_bytes_per_receive, self.until_end()))
+
+    def getline(self) -> bytes:
         line = bytearray()
-        while b := self.recv(self._request.server.max_bytes_per_receive):
+        while b := self.receive():
             if b'\r\n' in b:
                 lines = b.split(b'\r\n')
                 line += lines[0]
-                self._request.connection.paste(b[len(lines[0])+2:])
+                self._request.connection.paste(b[len(lines[0]) + 2:])
                 break
             line += b
         return line
 
-    def get(self):
+    def get(self) -> bytes:
         data = bytearray()
-        while b := self.recv(self._request.server.max_bytes_per_receive):
+        while b := self.receive():
             data += b
         self._received = len(data)
         return bytes(data)
 
-    def files_boundary(self):
+    def form(self) -> dict:
+        if self._request.content_type[0] == 'application/x-www-form-urlencoded':
+            return Request.get_args((self.getline()).decode())
+        return {}
+
+    def skip(self):
+        while not self.end():
+            self.receive()
+
+    def files_boundary(self) -> str | None:
         return self._request.content_type[1].get('boundary', None)
 
-    def next_file_header(self):
+    def next_file_header(self) -> dict:
         while line := self.getline():
             if line == b'--' + self.files_boundary().encode():
                 break
@@ -130,7 +158,7 @@ class RequestBody:
             header.append(line)
         return Request.parse_http_header(b'\r\n'.join(header).decode())
 
-    def next_file_body(self):
+    def next_file_body(self) -> bytes:
         data = bytearray()
         while line := self.getline():
             if line == b'--' + self.files_boundary().encode():

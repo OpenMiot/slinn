@@ -1,3 +1,6 @@
+import os
+import sys
+import inspect
 import warnings
 from datetime import datetime
 from .address import Address
@@ -5,16 +8,9 @@ from .handle import Handle
 from .i_middleware import IMiddleware
 from .file import File
 from .preprocessor import Preprocessor
-from .filter import Filter
-from .link_filter import LinkFilter
-from .any_filter import AnyFilter
-from .i_path import IPath
-from .path import Path
-from .dispatcher import Dispatcher
-from .hcdispatcher import HCDispatcher
-from .ftdispatcher import FTDispatcher
 from .tcp_response_chunk import TCPResponseChunk
 from .http_response_chunk import HttpResponseChunk
+from .http_response_header import CookieSameSite
 from .http_response_header import HttpResponseHeader
 from .websocket_opcodes import WebSocketOpcodes
 from .websocket_handshake import WebSocketHandshake
@@ -23,6 +19,15 @@ from .websocket_connection import WebSocketConnection
 from .async_websocket_connection import AsyncWebSocketConnection
 from .websocket_group import WebSocketGroup
 from .async_websocket_group import AsyncWebSocketGroup
+from .filter import Filter
+from .link_filter import LinkFilter
+from .any_filter import AnyFilter
+from .i_path import IPath
+from .path import Path
+from .dispatcher import Dispatcher
+from .hcdispatcher import HCDispatcher
+from .ftdispatcher import FTDispatcher
+from .api_dispatcher import ApiDispatcher
 from .request import Request, RequestBody
 from .async_request import AsyncRequest, AsyncRequestBody
 from .http_response import HttpResponse
@@ -40,7 +45,6 @@ from .async_socket_wrapper import AsyncSocketWrapper
 from .async_ssl_socket_wrapper import AsyncSSLSocketWrapper
 from .server import Server
 from .async_server import AsyncServer
-from .api_dispatcher import ApiDispatcher
 from .storage import Storage, StorageIO
 from . import utils
 
@@ -48,11 +52,17 @@ from . import utils
 VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
-    'version': '2.3.1',
-    'version_id': '240925A',
-    'dies_at': datetime(2025, 11, 24, 23, 59)
+    'version': '2.3.2',
+    'version_id': '110226A',
+    'meta': {
+        'dies_at': datetime(2026, 4, 11, 23, 59),
+        'is_snapshot': True
+    }
 }
 version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
+
+root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
+slinn_root = Storage(root)
 
 Response = utils.rename_class(HttpResponse, 'Response')
 ResponseHeader = utils.rename_class(HttpResponseHeader, 'ResponseHeader')
@@ -74,5 +84,5 @@ JSONAPIResponse = utils.make_deprecated(JSONAPIResponse, HttpJSONAPIResponse)
 
 warnings.simplefilter('always', DeprecationWarning)
 
-if datetime.now() > VERSION['dies_at']:
+if VERSION['meta']['is_snapshot'] and datetime.now() > VERSION['meta']['dies_at']:
     exit("Slinn`s version has expired. You need to upgrade")

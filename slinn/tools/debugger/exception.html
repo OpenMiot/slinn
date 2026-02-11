@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><% m1 %></title>
+    <style>
+        :root {
+            --text-color: #94959C;
+            --bg-color: #1a1a1e;
+            --secondary-bg: #121214;
+            --button-background: #242429;
+            --active-button-background: #39393f;
+            --gray-text-color: #808080;
+            --overlay-background-color: #2121219f;
+            --placeholder-background-color: #434343;
+
+            --accent-color: #DA3E44;
+            --accent-transparent-color: #DA3E447F;
+            --accent-text-color: #EFEFF0;
+
+            --toast-background-color: #2424299f;
+            --toast-foreground-color: #EFEFF09f;
+
+            --link-button-background: #121214;
+
+            --cost-background: #bb803c;
+            --cost-text: #663d00;
+
+            --good-background: #22dd44;
+            --good-text: #007000;
+
+            --large-button-background1: #FCF2DE;
+            --large-button-text1: #8C826E;
+            --large-button-background2: #CCFBD9;
+            --large-button-text2: #5C8B69;
+
+            --ava-placeholder-color1: #878EFC;
+            --ava-placeholder-color2: #E7B1F5;
+            --ava-outline-color1: #11F1EE;
+            --ava-outline-color2: #0893DD;
+
+            --trademark-slinn-color: #FE00EE;
+        }
+        * {
+            box-sizing: border-box;
+            word-wrap: break-word;
+            width: 100%;
+            font-weight: 400;
+            font-family: 'Ubuntu';
+        }
+        body {
+            color: var(--text-color);
+            background: var(--secondary-bg);
+            width: calc(100vw - 50px);
+            transition: left .5s;
+        }
+        h1{
+            margin-top: 15px;
+        }
+        h2{
+            font-weight: 550;
+        }
+        h3{
+            margin: 0;
+        }
+        pre{
+            background: var(--button-background);
+            border-radius: 5px;
+            padding: 5px;
+        }
+        #traceback{
+            background: var(--bg-color);
+            padding: 10px;
+            border-radius: 15px;
+            margin: 15px;
+        }
+        .meta-label{
+            inline-size: 200px;
+            display: inline-block;
+            text-align: right;
+            margin-right: 16px;
+        }
+        .lineno{
+            font-weight: 900;
+        }
+    </style>
+</head>
+<body>
+    <h1><% m1 %></h1>
+    <h2><% m2 %></h2>
+    <p>
+        <span class="meta-label">Request`s method:</span><% method %><br/>
+        <span class="meta-label">Request`s full link:</span><% full_link %><br/>
+        <span class="meta-label">Running on</span><% slinn_version %><br/>
+        <span class="meta-label">Command line arguments:</span><% args %><br/>
+        <span class="meta-label">Python executable:</span><% executable %>
+    </p>
+    <div id="traceback">
+        <h3>Traceback:</h3>
+        <ul>
+            <% for frame in frames %>
+                <li>
+                    File <% frame.filename %> in <% frame.name %><br/>
+                    <pre>
+<span class="lineno"><% frame.lineno %></span>    <% frame.line %></pre>
+                </li>
+            <% end %>
+        </ul>
+    </div>
+</body>
+</html>

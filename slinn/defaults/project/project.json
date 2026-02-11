@@ -1,5 +1,6 @@
 {
     "name": "Slinn",
+    "async": true,
 
     "host": "localhost",
     "port": 8080,
@@ -13,6 +14,8 @@
     "apps": ["firstrun"],
 
     "smart_navigation": true,
+
+    "timeout": 0.5,
     "max_bytes_per_receive": 4096,
     "max_header_size": 4294967296
 }

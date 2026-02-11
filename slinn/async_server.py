@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any
-from . import AsyncRequest, Address, Filter, HCDispatcher, FTDispatcher, utils, AsyncSSLSocketWrapper, AsyncSocketWrapper, exceptions
+from . import AsyncRequest, Address, Filter, HCDispatcher, FTDispatcher, utils, AsyncSSLSocketWrapper, AsyncSocketWrapper, exceptions, Server
+from .tools.debugger import ExceptionResponse
 import asyncio
 import socket
 import ssl
@@ -8,55 +9,36 @@ import os
 import logging
 import traceback
 import warnings
+import inspect
 
 
-class AsyncServer:
+class AsyncServer(Server):
     """
     Main class to start async server
     """
 
-    class Handle:
-        def __init__(self, filter: Filter, function):
-            self.filter = filter
-            self.function = function
-
     def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
-                 # type: ignore
-                 ssl_key: str = None, timeout: float = 0.03, max_bytes_per_receive: int = 4096,
-                 max_header_size: int = 4294967296, _func=lambda server: None, logger: logging.Logger = logging.getLogger(),
-                 hcdp: HCDispatcher = HCDispatcher(), htrf: FTDispatcher = FTDispatcher()) -> None:  # type: ignore
-        self.dispatchers = dispatchers
-        self.smart_navigation = smart_navigation
-        self.server_socket = None
-        self.ssl = ssl_fullchain is not None and ssl_key is not None
-        self.ssl_cert, self.ssl_key = ssl_fullchain, ssl_key
-        self.ssl_context = None
-        self.thread = None
-        self.timeout = timeout
-        self.max_bytes_per_receive = max_bytes_per_receive
-        self.max_header_size = max_header_size
-        self._func = _func
-        self.logger = logger
-        self.hcdp = hcdp
-        self.htrf = htrf
+                 ssl_key: str = None, timeout: float = 5, max_bytes_per_receive: int = 4096,
+                 max_header_size: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
+                 hcdp: HCDispatcher = None, htrf: FTDispatcher = None,
+                 max_requests: int = 200, debug: bool = True) -> None:  # type: ignore
+        Server.__init__(
+            self,
+            *dispatchers,
+            smart_navigation=smart_navigation,
+            ssl_fullchain=ssl_fullchain,
+            ssl_key=ssl_key,
+            timeout=timeout,
+            max_bytes_per_receive=max_bytes_per_receive,
+            max_header_size=max_header_size,
+            _func=_func,
+            logger=logger,
+            hcdp=hcdp,
+            htrf=htrf,
+            max_requests=max_requests,
+            debug=debug)
 
         self.loop: asyncio.EventLoop = None
-
-    def reload(self, *dispatchers: tuple) -> None:
-        if self.thread is not None:
-            self.thread.stop()
-            try:
-                self.thread.join()
-            except RuntimeError:
-                pass
-        self.dispatchers = dispatchers
-        self.logger.info('Server has reloaded')
-
-    def address(self, port: int, domain: str = None):
-        protocol = 'https' if self.ssl else 'http'
-        return (f'{protocol.upper()} server is available on {protocol}://' +
-                ('0.0.0.0' if (domain is None or domain == '') else ('[' + domain + ']' if ':' in domain else domain)) +
-                f'{(":" + str(port) if port != 443 else "") if self.ssl else (":" + str(port) if port != 80 else "")}/')
 
     async def listen(self, address: Address):
         self.server_socket = None
@@ -88,100 +70,165 @@ class AsyncServer:
                 try:
                     connection, client_address = await self.loop.sock_accept(self.server_socket)
                     self.loop.create_task(self.handle_request(connection, client_address))
+                except KeyboardInterrupt as e:
+                    self.exit()
                 except (BlockingIOError, socket.timeout):
-                    await asyncio.sleep(0.01)
+                    await asyncio.sleep(0.005)
                 except Exception as e:
                     self.logger.warning(f'During handling exception, an {e} has occurred')
                     self.logger.warning(traceback.format_exc())
                     self.reload(*self.dispatchers)
-                    
         except KeyboardInterrupt:
-            self.logger.critical('Got KeyboardInterrupt, halting the application...')
-            if utils.check_socket(self.server_socket):
-                self.server_socket.close()
-            os._exit(0)
+            self.exit()
 
-    async def handle_request(self, connection: socket.socket, client_address):
+    async def handle_request(self, connection, client_address, wrapped=False, timeout=None, max_requests=None):
         try:
             self._func(self)
-            connection = (AsyncSSLSocketWrapper(connection, self.ssl_context, self.loop)
-                            if self.ssl else
-                          AsyncSocketWrapper(connection, self.loop))
+            if not wrapped:
+                connection = (AsyncSSLSocketWrapper(connection, self.ssl_context, self.loop)
+                                if self.ssl else
+                            AsyncSocketWrapper(connection, self.loop))
+                wrapped = True
+            if not max_requests:
+                max_requests = self.max_requests
+            if max_requests == 0:
+                return connection.close()
+            max_requests -= 1
+            connection.settimeout(timeout or self.timeout)
             try:
-                connection.settimeout(self.timeout)
                 data = bytearray()
                 while len(data) < self.max_header_size and b'\r\n\r\n' not in data:
                     try:
                         b = await connection.recv(self.max_bytes_per_receive)
                         data += b
+                    except KeyboardInterrupt:
+                        self.exit()
                     except (TimeoutError, socket.timeout, asyncio.exceptions.TimeoutError):
+                        connection.close()
                         break
                 data = data.split(b'\r\n\r\n')
                 header = data[0].decode()
                 if header == '':
-                    return
-                request = AsyncRequest(self.loop, header, client_address, connection, self)
-                request.htrf = self.htrf
+                    return None if connection.closed() else await self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
+                request = AsyncRequest(self.loop, header, client_address, connection, self, htrf=self.htrf)
                 self.logger.info(repr(request))
                 request.connection.paste(b'\r\n\r\n'.join(data[1:]))
             except KeyError:
-                return self.logger.info('Got KeyError, probably invalid request. Ignore')
+                self.logger.info('Got KeyError, probably invalid request. Ignore')
+                return None if connection.closed() else await self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             except UnicodeDecodeError:
-                return self.logger.info('Got UnicodeDecodeError, probably invalid header. Ignore')
+                self.logger.info('Got UnicodeDecodeError, probably invalid header. Ignore')
+                return None if connection.closed() else await self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             except ConnectionResetError:
-                return self.logger.info('Connection reset by client')
+                self.logger.info('Connection reset by client')
+                return None if connection.closed() else await self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             except OSError:
-                return self.logger.info('Connection closed')
+                self.logger.info('Connection closed')
+                return None if connection.closed() else await self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             for dispatcher in self.dispatchers:
-                if True in [utils.restartswith(request.host, host) for host in dispatcher.hosts]:
+                if dispatcher.check(request.host):
                     if self.smart_navigation:
-                        sizes = [handle.filter.size(request.link, request.method) for handle in dispatcher.handles]
+                        sizes = [handle.filter.size(request) for handle in dispatcher.handles]
                         if sizes:
                             if await self.answer_request(connection, dispatcher.handles[sizes.index(max(sizes))], request,
-                                                         data, header):
-                                return
+                                                         data, header, max_requests):
+                                return None if connection.closed() else await self.handle_request(
+                                    connection,
+                                    client_address,
+                                    wrapped, 
+                                    request.keep_alive.get('timeout', connection._timeout),
+                                    request.keep_alive.get('max', max_requests)
+                                )
                     else:
                         for handle in dispatcher.handles:
-                            if await self.answer_request(connection, handle, request, data, header):
-                                return
+                            if await self.answer_request(connection, handle, request, data, header, max_requests):
+                                return None if connection.closed() else await self.handle_request(
+                                    connection,
+                                    client_address,
+                                    wrapped, 
+                                    request.keep_alive.get('timeout', connection._timeout),
+                                    request.keep_alive.get('max', max_requests)
+                                )
             try:
-                return await self.answer_request(connection, self.hcdp[404], request, data, header)
+                await self.answer_request(connection, self.hcdp[404], request, data, header, max_requests)
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 404 `s handler is not defined', exceptions.Handler404NotFound)
-            connection.close()
+                await connection.send(b'HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\n\r\n404 Not Found')
+            return None if connection.closed() else await self.handle_request(
+                connection,
+                client_address,
+                wrapped, 
+                request.keep_alive.get('timeout', connection._timeout),
+                request.keep_alive.get('max', max_requests)
+            )
+        except KeyboardInterrupt:
+            self.exit()
         except Exception as exception:
             self.logger.warning(f'During handling request, an {exception} has occurred')
             self.logger.warning(traceback.format_exc())
             self.reload(*self.dispatchers)
             try:
-                return await self.answer_request(connection, self.hcdp[500], request, data, header)
+                if self.debug:
+                    await connection.send(ExceptionResponse(exception, request).make())
+                else:
+                    return await self.answer_request(connection, self.hcdp[500], request, data, header, max_requests)
             except UnboundLocalError:
-                return connection.close()
+                return None if connection.closed() else await self.handle_request(
+                    connection,
+                    client_address,
+                    wrapped, 
+                    connection._timeout,
+                    max_requests+1
+                )
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
-            connection.close()
+                await connection.send(b'HTTP/1.1 500 Internal Server Error\r\nContent-Length: 25\r\n\r\n500 Internal Server Error')
+            return None if connection.closed() else await self.handle_request(
+                connection,
+                client_address,
+                wrapped, 
+                request.keep_alive.get('timeout', connection._timeout),
+                request.keep_alive.get('max', max_requests)
+            )
 
-    async def answer_request(self, connection, handle, request, http_data, http_header):
-        if not handle.filter.check(request.link, request.method):
+    async def answer_request(self, connection, handle, request, http_data, http_header, max_requests):
+        print('a1', handle.filter)
+        if not handle.filter.check(request):
             return False
-        if not utils.check_socket(connection):
+
+        print('a2', handle.filter)
+        if connection.closed():
             return True
-        response = await utils.optional(handle.function,
-                                        request=request,
-                                        http_data=http_data,
-                                        http_header=http_header,
-                                        http_content=b'',
-                                        client_socket=connection,
-                                        server=self,
-                                        **handle.args(request))
+        cor = utils.optional(handle.function,
+                             request=request,
+                             http_data=http_data,
+                             http_header=http_header,
+                             http_content=b'',
+                             client_socket=connection,
+                             server=self,
+                             **handle.args(request))
+        if inspect.isasyncgenfunction(handle.function):
+            async for response in cor:
+                buffer = utils.optional(response.make, version=request.version, type=request.version, htrf=self.htrf)
+                packages = [buffer[x:x + self.max_bytes_per_receive] for x in
+                            range(0, len(buffer), self.max_bytes_per_receive)]
+                i = 0
+                while i < len(packages):
+                    try:
+                        await connection.send(packages[i])
+                        i += 1
+                    except TimeoutError:
+                        continue
+            await request.body.skip()
+            return True
+        response = await cor
         if type(response) is int:
             handle = self.hcdp[response]
-            if handle is not None:
-                return await self.answer_request(connection, handle, request, http_data, http_header)
+            if handle:
+                return await self.answer_request(connection, handle, request, http_data, http_header, max_requests)
             self.logger.error(f'Error code {response} `s handler is not defined')
-        elif response is not None:
-            buffer = utils.optional(response.make, version=request.version, type=request.version, gzip=False,
-                                    htrf=self.htrf)
+        elif response:
+            buffer = utils.optional(response.make, version=request.version, type=request.version, htrf=self.htrf)
             packages = [buffer[x:x + self.max_bytes_per_receive] for x in
                         range(0, len(buffer), self.max_bytes_per_receive)]
             i = 0
@@ -191,5 +238,5 @@ class AsyncServer:
                     i += 1
                 except TimeoutError:
                     continue
-        connection.close()
+        await request.body.skip()
         return True

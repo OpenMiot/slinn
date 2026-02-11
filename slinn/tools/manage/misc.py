@@ -1,0 +1,132 @@
+from __future__ import annotations
+from .colorcodes import *
+from .defaults import APP_CONFIG
+from slinn import slinn_root
+import os
+import base64
+import hashlib
+import json
+
+
+def splits(string: str, delimiters=(' ', '\n'), quotes=tuple()):
+    result = ['']
+    current_quote = ''
+    for char in str(string):
+        if char in quotes:
+            if current_quote == '':
+                current_quote = char
+                continue
+            elif current_quote == char:
+                current_quote = ''
+                continue
+        if current_quote == '':
+            if char in delimiters:
+                result.append('')
+            else:
+                result[-1] += char
+        else:
+            result[-1] += char
+    return result
+
+
+def get_args(expecting, text):
+    text = text.strip()
+    if text == '':
+        return {}
+    args = {'not_used': []}
+    d_s = ('\n', ' ')
+    q_s= ('"', "'", '`')
+    spl_s = splits(text, d_s, q_s)
+    i = 0
+    while i < len(spl_s):
+        arg = str(spl_s[i])
+        try:
+            if arg.strip().endswith('='):
+                _w = arg.strip().removesuffix('=').strip()
+                expecting.pop(expecting.index(_w))
+                args[_w] = arg_parse(str(spl_s[i + 1]))
+                i += 2
+                continue
+            if len(splits(arg, ['='], q_s)) == 2:
+                spl = splits(arg, ['='])
+                _w = str(spl[0])
+                if _w not in args.keys():
+                    args[_w] = arg_parse(str(spl[1]))
+                    expecting.pop(expecting.index(_w))
+                else:
+                    args[_w] = [args[_w]]
+                    args[_w].append(arg_parse(str(spl[1])))
+                i += 1
+                continue
+        except ValueError:
+            pass
+
+        if len(expecting) == 0:
+            args['not_used'].append(arg_parse(arg))
+            i += 1
+            continue
+
+        E = expecting.pop(0)
+        args[E] = arg_parse(arg)
+        i += 1
+    return args
+
+
+def replace_all(text: str, sss: list[str]|str, ss2: str) -> str:
+    for ss1 in sss:
+        text = text.replace(ss1, ss2)
+    return text
+
+
+def get_dir_checksum(dir):
+    def get_dir_checksums(dir):
+        def md5(fname):
+            hash_md5 = hashlib.md5()
+            with open(fname, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            return hash_md5.hexdigest()
+
+        paths = os.listdir(dir)
+        checksums = []
+        for path in paths:
+            if os.path.isdir(path):
+                checksums += get_dir_checksums(dir + '/' + path)
+            elif path.endswith('.py'):
+                checksums.append(path + md5(dir + '/' + path))
+        return checksums
+
+    return hashlib.md5(''.join([checksum for checksum in get_dir_checksums(dir)]).encode()).hexdigest()
+
+def config():
+    with slinn_root('/defaults/project/project.json', 'r') as f:
+        cfg = json.load(f)
+    with open('project.json') as f:
+        cfg.update(json.load(f))
+    return cfg
+
+def app_config(app):
+    try:
+        cfg = APP_CONFIG.copy()
+        with open(f'{app}/config.json') as f:
+            cfg.update(json.load(f))
+        return cfg
+    except FileNotFoundError:
+        print(f'{RED}{app}/config.json file not found{RESET}')
+        exit()
+
+
+arg_parse: Callable[[str], str] = lambda arg: (
+    base64.urlsafe_b64decode(arg.removeprefix('b64@').encode() + b'==').decode() if arg.startswith('b64@') else arg)
+
+add_quotes_to_list: Callable[[list[str]]] = lambda lst: (f'\'{l}\''for l in lst)
+
+load_imports: Callable[[list[str], bool], list[str]] = lambda apps, debug=False: [
+    f'import {app}' for app in apps if not app_config(app)['debug'] or debug
+]
+
+get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, debug=False: [
+    f'{app}.dp' for app in apps if not app_config(app)['debug'] or debug
+]
+
+app_reload : Callable[[str]]= lambda app: f'global {app};{app} = importlib.reload({app});'

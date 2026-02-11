@@ -1,5 +1,6 @@
 """Import slinn`s modules"""
 from . import Dispatcher, Path, Handle
+import functools
 
 
 class ApiDispatcher(Dispatcher):
@@ -8,50 +9,21 @@ class ApiDispatcher(Dispatcher):
         super().__init__(*hosts)
         self.prefix = prefix
 
-    def get(self, path: str = '/'):
-        """HTTP-GET Requests handler creator"""
-        def decorator(func):
-            _path = Path(self.prefix+path, ('GET',))
-            self.handles.append(Handle(_path, func, _path.args))
-            return func
-        return decorator
+        self.get = functools.partial(self._register_handler_decorator, methods=('GET', ))
+        self.post = functools.partial(self._register_handler_decorator, methods=('POST',))
+        self.patch = functools.partial(self._register_handler_decorator, methods=('PATH',))
+        self.put = functools.partial(self._register_handler_decorator, methods=('GET',))
+        self.delete = functools.partial(self._register_handler_decorator, methods=('GET',))
+        self.options = functools.partial(self._register_handler_decorator, methods=('GET',))
 
-    def post(self, path: str = '/'):
-        """HTTP-POST Requests handler creator"""
+    def _register_handler_decorator(self, path: str = '/', methods: tuple[str] = ()):
         def decorator(func):
-            _path = Path(self.prefix + path, ('POST',))
-            self.handles.append(Handle(_path, func, _path.args))
-            return func
-        return decorator
+            @functools.wraps(func)
+            async def wrapper(*args, **kwargs):
+                return await func(*args, **kwargs)
 
-    def patch(self, path: str = '/'):
-        """HTTP-PATCH Requests handler creator"""
-        def decorator(func):
-            _path = Path(self.prefix + path, ('PATCH',))
+            _path = Path(self.prefix + path, methods)
             self.handles.append(Handle(_path, func, _path.args))
-            return func
-        return decorator
+            return wrapper
 
-    def put(self, path: str = '/'):
-        """HTTP-PUT Requests handler creator"""
-        def decorator(func):
-            _path = Path(self.prefix + path, ('PUT',))
-            self.handles.append(Handle(_path, func, _path.args))
-            return func
-        return decorator
-
-    def delete(self, path: str = '/'):
-        """HTTP-DELETE Requests handler creator"""
-        def decorator(func):
-            _path = Path(self.prefix + path, ('DELETE',))
-            self.handles.append(Handle(_path, func, _path.args))
-            return func
-        return decorator
-    
-    def options(self, path: str = '/'):
-        """HTTP-OPTIONS Requests handler creator"""
-        def decorator(func):
-            _path = Path(self.prefix + path, ('OPTIONS',))
-            self.handles.append(Handle(_path, func, _path.args))
-            return func
         return decorator

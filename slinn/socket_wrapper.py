@@ -1,7 +1,9 @@
 class SocketWrapper:
-    def __init__(self, sock):
+    def __init__(self, sock, timeout=5):
         self._sock = sock
         self.buffer = bytearray()
+        self.sendall = self.send
+        self._timeout = timeout
 
     def recv(self, n_bytes):
         if len(self.buffer) > 0:
@@ -22,6 +24,7 @@ class SocketWrapper:
         self.buffer = data + self.buffer
 
     def settimeout(self, timeout):
+        self._timeout = timeout
         return self._sock.settimeout(timeout)
 
     def setblocking(self, blocking):
@@ -34,4 +37,8 @@ class SocketWrapper:
         return self._sock.fileno()
 
     def close(self):
+        print('closed')
         return self._sock.close()
+
+    def closed(self):
+        return self.fileno() == -1

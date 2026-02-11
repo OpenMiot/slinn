@@ -1,20 +1,20 @@
 # Slinn
 
-**Slinn is a HTTPS and HTTP server framework**
+**Slinn is a HTTP server framework**
 
-![License](https://img.shields.io/github/license/mrybs/slinn)
+![License](https://img.shields.io/github/license/OpenMiot/slinn)
 
-![GitHub Release](https://img.shields.io/github/v/release/mrybs/slinn)
-![GitHub top language](https://img.shields.io/github/languages/top/mrybs/slinn)
+![GitHub Release](https://img.shields.io/github/v/release/OpenMiot/slinn)
+![GitHub top language](https://img.shields.io/github/languages/top/OpenMiot/slinn)
 
-![GitHub Repo stars](https://img.shields.io/github/stars/mrybs/slinn)
-![GitHub watchers](https://img.shields.io/github/watchers/mrybs/slinn)
-![GitHub forks](https://img.shields.io/github/forks/mrybs/slinn)
+![GitHub Repo stars](https://img.shields.io/github/stars/OpenMiot/slinn)
+![GitHub watchers](https://img.shields.io/github/watchers/OpenMiot/slinn)
+![GitHub forks](https://img.shields.io/github/forks/OpenMiot/slinn)
 
-![GitHub commit activity](https://img.shields.io/github/commit-activity/w/mrybs/slinn)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/t/mrybs/slinn)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/w/OpenMiot/slinn)
+![GitHub commit activity](https://img.shields.io/github/commit-activity/t/OpenMiot/slinn)
 
-![GitHub repo size](https://img.shields.io/github/repo-size/mrybs/slinn)
+![GitHub repo size](https://img.shields.io/github/repo-size/OpenMiot/slinn)
 
 
 ### Simple example
@@ -42,21 +42,11 @@ def helloworld(request):
 
 ### Begin project
 #### Standart
-##### Unix-like (Linux, MacOS, FreeBSD...):
 ```bash
 python3 -m slinn create helloworld
 cd helloworld
 venv/bin/python manage.py create localhost host=localhost host=127.0.0.1
 venv/bin/python manage.py run 
-```
-
-##### Windows:
-```batch
-py -m slinn create helloworld
-cd helloworld
-venv\Scripts\activate
-py manage.py create localhost host=localhost host=127.0.0.1
-py manage.py run 
 ```
 
 Insert example into localhost/app.py file

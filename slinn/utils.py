@@ -5,6 +5,10 @@ import re
 import threading
 
 
+optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
+rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
+
+
 class StoppableThread(threading.Thread):
     def __init__(self, *args: tuple, **kwargs: dict) -> None:
         super(StoppableThread, self).__init__(*args, **kwargs)
@@ -15,23 +19,6 @@ class StoppableThread(threading.Thread):
 
     def stopped(self) -> bool:
         return self._stop_event.is_set()
-
-
-def optional(func, *args, **kwargs) -> any:
-    _args, _kwargs, k = [], {}, {}
-    s = [arg.split(':')[0].strip() for arg in ')'.join('('.join(str(inspect.signature(func)).split('(')[1:]).split(')')[:-1]).split(',')]
-    for key in kwargs.keys():
-        if key in s:
-            k[key] = kwargs[key]
-    kwargs = k
-    if len(s) < len(args):
-        _args = args[:-len(s)]
-    elif len(s) < len(args) + len(kwargs):
-        _args, _kwargs = args[:-len(s)], {list(kwargs.keys())[i]: kwargs[list(kwargs.keys())[i]] for i in
-                                          range(len(kwargs) - len(s) - len(args))}
-    else:
-        _args, _kwargs = args, kwargs
-    return func(*_args, **_kwargs)
 
 
 def make_deprecated(obj, what_instead):
@@ -55,10 +42,6 @@ def restartswith(text: str, reg: str) -> bool:
     return largest is not None
 
 
-def rematcheswith(text: str, reg: str) -> bool:
-    return re.match('^' + reg + '$', text) is not None
-
-
 def Bmin_restartswith_size(text: str, reg: str) -> int:
     buf, smallest = text, None
     for _ in range(len(text)):
@@ -78,9 +61,6 @@ def min_restartswith_size(text: str, reg: str) -> int:
             smallest = buf
     return len(smallest) if smallest is not None else 2147483647
 
-
-def check_socket(sock) -> bool:
-    return sock.fileno() != -1
 
 def representate(obj: any) -> bytes:
     if type(obj) == dict:

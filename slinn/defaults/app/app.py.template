@@ -1,0 +1,5 @@
+from slinn import ApiDispatcher
+
+dp = ApiDispatcher(<% hosts %>)
+
+# Write your code down here

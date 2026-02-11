@@ -1,0 +1,7 @@
+<% BOLD %>Slinn help page
+
+    Commands<% RESET %>:
+    	<% cmd %> create {project`s name}		<% GRAY %># Creates a new project<% RESET %>
+    	<% cmd %> update {project`s name}		<% GRAY %># Updates the project<% RESET %>
+    	<% cmd %> help                   		<% GRAY %># Prints this help<% RESET %>
+    	<% cmd %> version                		<% GRAY %># Prints version of Slinn<% RESET %>

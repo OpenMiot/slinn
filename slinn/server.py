@@ -1,11 +1,13 @@
 from typing import Any, Callable
 from . import Request, Address, HCDispatcher, FTDispatcher, SocketWrapper, SSLSocketWrapper, utils, exceptions
+from .tools.debugger import ExceptionResponse
 import socket
 import ssl
 import os
 import logging
 import traceback
 import warnings
+import inspect
 
 
 class Server:
@@ -14,9 +16,10 @@ class Server:
     """
 
     def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
-                 ssl_key: str = None, timeout: float = 0.03, max_bytes_per_receive: int = 4096,
+                 ssl_key: str = None, timeout: float = 5, max_bytes_per_receive: int = 4096,
                  max_header_size: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
-                 hcdp: HCDispatcher = HCDispatcher(), htrf: FTDispatcher = FTDispatcher()) -> None:  # type: ignore
+                 hcdp: HCDispatcher = None, htrf: FTDispatcher = None,
+                 max_requests: int = 200, debug=True) -> None:  # type: ignore
         self.dispatchers = dispatchers
         self.smart_navigation = smart_navigation
         self.server_socket = None
@@ -25,12 +28,14 @@ class Server:
         self.ssl_context = None
         self.thread = None
         self.timeout = timeout
+        self.max_requests = max_requests
         self.max_bytes_per_receive = max_bytes_per_receive
         self.max_header_size = max_header_size
         self._func = _func if _func is not None else lambda server: None
         self.logger = logger if logger is not None else logging.getLogger('slinn')
-        self.hcdp = hcdp
-        self.htrf = htrf
+        self.hcdp = hcdp or HCDispatcher()
+        self.htrf = htrf or FTDispatcher()
+        self.debug = debug
 
     def reload(self, *dispatchers: tuple) -> None:
         if self.thread is not None:
@@ -41,6 +46,12 @@ class Server:
                 pass
         self.dispatchers = dispatchers
         self.logger.info('Server has reloaded')
+    
+    def exit(self):
+        self.logger.critical('Got KeyboardInterrupt, halting the application...')
+        if utils.check_socket(self.server_socket):
+            self.server_socket.close()
+        os._exit(0)
 
     def address(self, port: int, domain: str = None):
         protocol = 'https' if self.ssl else 'http'
@@ -82,12 +93,16 @@ class Server:
                 self.server_socket.close()
             os._exit(0)
 
-    def handle_request(self, connection, client_address):
+    def handle_request(self, connection, client_address, wrapped=False, timeout=None, max_requests=None):
         try:
             self._func(self)
-            connection = SSLSocketWrapper(connection, self.ssl_context) if self.ssl else SocketWrapper(connection)
+            if not wrapped:
+                connection = SSLSocketWrapper(connection, self.ssl_context) if self.ssl else SocketWrapper(connection)
+                wrapped = True
+            if not max_requests:
+                max_requests = self.max_requests
+            connection.settimeout(timeout or self.timeout)
             try:
-                connection.settimeout(self.timeout)
                 data = bytearray()
                 while len(data) < self.max_header_size and b'\r\n\r\n' not in data:
                     try:
@@ -98,52 +113,104 @@ class Server:
                 data = data.split(b'\r\n\r\n')
                 header = data[0].decode()
                 if header == '':
-                    return
-                request = Request(header, client_address, connection, self)
-                request.htrf = self.htrf
+                    return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
+                request = Request(header, client_address, connection, self, htrf=self.htrf)
                 self.logger.info(repr(request))
                 request.connection.paste(b'\r\n\r\n'.join(data[1:]))
             except KeyError:
-                return self.logger.info('Got KeyError, probably invalid request. Ignore')
+                self.logger.info('Got KeyError, probably invalid request. Ignore')
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             except UnicodeDecodeError:
-                return self.logger.info('Got UnicodeDecodeError, probably invalid request. Ignore')
+                self.logger.info('Got UnicodeDecodeError, probably invalid request. Ignore')
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             except ConnectionResetError:
-                return self.logger.info('Connection reset by client')
+                self.logger.info('Connection reset by client')
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             except OSError:
-                return self.logger.info('Connection closed')
+                self.logger.info('Connection closed')
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
             for dispatcher in self.dispatchers:
-                if True in [utils.restartswith(request.host, host) for host in dispatcher.hosts]:
+                if dispatcher.check(request.host):
                     if self.smart_navigation:
-                        sizes = [handle.filter.size(request.link, request.method) for handle in dispatcher.handles]
+                        sizes = [handle.filter.size(request) for handle in dispatcher.handles]
                         if sizes:
                             if self.answer_request(connection, dispatcher.handles[sizes.index(max(sizes))], request,
-                                                   data, header):
-                                return
+                                                   data, header, max_requests):
+                                return None if connection.closed() else self.handle_request(
+                                    connection,
+                                    client_address,
+                                    wrapped, 
+                                    request.keep_alive.get('timeout', connection._timeout),
+                                    request.keep_alive.get('max', max_requests)
+                                )
                     else:
                         for handle in dispatcher.handles:
-                            if self.answer_request(connection, handle, request, data, header):
-                                return
+                            if self.answer_request(connection, handle, request, data, header, max_requests):
+                                return None if connection.closed() else self.handle_request(
+                                    connection,
+                                    client_address,
+                                    wrapped, 
+                                    request.keep_alive.get('timeout', connection._timeout),
+                                    request.keep_alive.get('max', max_requests)
+                                )
             try:
-                return self.answer_request(connection, self.hcdp[404], request, data, header)
+                self.answer_request(connection, self.hcdp[404], request, data, header, max_requests)
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 404 `s handler is not defined', exceptions.Handler404NotFound)
-            connection.close()
+                connection.send(b'HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\n\r\n404 Not Found')
+            return None if connection.closed() else self.handle_request(
+                connection,
+                client_address,
+                wrapped, 
+                request.keep_alive.get('timeout', connection._timeout),
+                request.keep_alive.get('max', max_requests)
+            )
         except Exception as exception:
             self.logger.warning(f'During handling request, an {exception} has occured')
             self.logger.warning(traceback.format_exc())
             self.reload(*self.dispatchers)
             try:
                 try:
-                    return self.answer_request(connection, self.hcdp[500], request, data, header)
+                    if self.debug:
+                        connection.send(ExceptionResponse(exception, request).make())
+                        return None if connection.closed() else self.handle_request(
+                            connection,
+                            client_address,
+                            wrapped, 
+                            request.keep_alive.get('timeout', connection._timeout),
+                            request.keep_alive.get('max', max_requests)
+                        )
+                    else:
+                        self.answer_request(connection, self.hcdp[500], request, data, header, max_requests)
+                        return None if connection.closed() else self.handle_request(
+                            connection,
+                            client_address,
+                            wrapped, 
+                            request.keep_alive.get('timeout', connection._timeout),
+                            request.keep_alive.get('max', max_requests)
+                        )
                 except UnboundLocalError:
-                    return connection.close()
+                    return None if connection.closed() else self.handle_request(
+                        connection,
+                        client_address,
+                        wrapped, 
+                        request.keep_alive.get('timeout', connection._timeout),
+                        request.keep_alive.get('max', max_requests)
+                    )
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
-            connection.close()
+                connection.send(b'HTTP/1.1 500 Internal Server Error\r\nContent-Length: 25\r\n\r\n500 Internal Server Error')
+            return None if connection.closed() else self.handle_request(
+                connection,
+                client_address,
+                wrapped, 
+                request.keep_alive.get('timeout', connection._timeout),
+                request.keep_alive.get('max', max_requests)
+            )
 
-    def answer_request(self, client_socket, handle, request, http_data, http_header):
-        if handle.filter.check(request.link, request.method):
-            if utils.check_socket(client_socket):
+    def answer_request(self, client_socket, handle, request, http_data, http_header, max_requests):
+        if handle.filter.check(request):
+            if not client_socket.closed():
                 response = utils.optional(handle.function,
                                           request=request,
                                           http_data=http_data,
@@ -152,10 +219,36 @@ class Server:
                                           client_socket=client_socket,
                                           server=self,
                                           **handle.args(request))
+                if inspect.isgeneratorfunction(handle.function):
+                    for resp in response:
+                        buffer = utils.optional(resp.make, version=request.version, type=request.version,
+                                                gzip=False,
+                                                htrf=self.htrf)
+                        packages = [buffer[x:x + self.max_bytes_per_receive] for x in
+                                    range(0, len(buffer), self.max_bytes_per_receive)]
+                        i = 0
+                        while i < len(packages):
+                            try:
+                                client_socket.sendall(packages[i])
+                                i += 1
+                            except TimeoutError:
+                                continue
+                    if request.headers.get('Connection', 'Keep-Alive') == 'close':
+                        client_socket.close()
+                    else:
+                        self.handle_request(
+                            client_socket,
+                            (request.ip, request.port),
+                            True, 
+                            request.keep_alive.get('timeout', client_socket._timeout),
+                            request.keep_alive.get('max', max_requests)
+                        )
+                    request.body.skip()
+                    return True
                 if type(response) is int:
                     handle = self.hcdp(response)
                     if handle is not None:
-                        return self.answer_request(client_socket, handle, request, http_data, http_header)
+                        return self.answer_request(client_socket, handle, request, http_data, http_header, max_requests)
                     self.logger.error(f'Error code {response} `s handler is not defined')
                 elif response is not None:
                     buffer = utils.optional(response.make, version=request.version, type=request.version, gzip=False,
@@ -169,6 +262,16 @@ class Server:
                             i += 1
                         except TimeoutError:
                             continue
-                client_socket.close()
+                if request.headers.get('Connection', 'Keep-Alive') == 'close':
+                    client_socket.close()
+                else:
+                    self.handle_request(
+                        client_socket,
+                        (request.ip, request.port),
+                        True, 
+                        request.keep_alive.get('timeout', client_socket._timeout),
+                        request.keep_alive.get('max', max_requests)
+                    )
+            request.body.skip()
             return True
         return False

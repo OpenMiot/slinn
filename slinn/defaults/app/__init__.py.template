@@ -1,0 +1,5 @@
+import sys, importlib
+if '<% appname %>.app' not in sys.modules.keys():
+    from <% appname %>.app import dp
+else:
+    dp = importlib.reload(sys.modules['<% appname %>.app']).dp
