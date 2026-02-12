@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=search" />
     <title><% m1 %></title>
     <style>
         :root {
@@ -61,6 +62,22 @@
         h2{
             font-weight: 550;
         }
+        h2>a{
+            display: inline-block;
+            color: var(--accent-text-color);
+            background: var(--accent-color);
+            border-radius: 13px;
+            width: 26px;
+            height: 26px;
+            text-decoration: none;
+        }
+        h2>a>span{
+            display: inline !important;
+            font-weight: 900;
+            font-size: 22px;
+            text-align: center;
+            vertical-align: text-top;
+        }
         h3{
             margin: 0;
         }
@@ -88,7 +105,12 @@
 </head>
 <body>
     <h1><% m1 %></h1>
-    <h2><% m2 %></h2>
+    <h2>
+        <% m2 %>
+        <a href="https://google.com/search?q=<% urlsafe m2 %>" target="_blank" rel="noopener noreferrer">
+            <span class="material-symbols-outlined">search</span>
+        </a>
+    </h2>
     <p>
         <span class="meta-label">Request`s method:</span><% method %><br/>
         <span class="meta-label">Request`s full link:</span><% full_link %><br/>
