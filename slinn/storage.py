@@ -9,21 +9,22 @@ class Storage:
         self.root = root
         self.ctx = {}
 
-    def __call__(self, path, filemode):
-        return StorageIO(self.root + '/' + path, filemode)
+    def __call__(self, path, mode, encoding='utf-8'):
+        return StorageIO(self.root + '/' + path, mode, encoding)
 
     def isfile(self, path):
         return os.path.isfile(self.root + '/' + path)
 
 
 class StorageIO:
-    def __init__(self, path, filemode):
+    def __init__(self, path, mode, encoding='utf-8'):
         self.path = path
-        self.filemode = filemode
+        self.mode = mode
+        self.encoding = encoding
         self.io = None
 
     def __enter__(self) -> IO:
-        self.io = open(self.path, self.filemode)
+        self.io = open(self.path, self.mode, encoding=self.encoding)
         return self.io
 
     def __exit__(self, _type, value, traceback):

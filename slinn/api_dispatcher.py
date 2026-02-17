@@ -21,8 +21,8 @@ class ApiDispatcher(Dispatcher):
             @functools.wraps(func)
             async def wrapper(*args, **kwargs):
                 return await func(*args, **kwargs)
-
-            _path = Path(self.prefix + path, methods)
+            
+            _path = Path(self.prefix + ('' if path.startswith('/') else ('/' if path else '/?')) + path, methods)
             self.handles.append(Handle(_path, func, _path.args))
             return wrapper
 
