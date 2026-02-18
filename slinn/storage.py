@@ -14,7 +14,7 @@ class Storage:
 
     def isfile(self, path):
         return os.path.isfile(self.root + '/' + path)
-    
+
     def listdir(self, path):
         return os.listdir(self.root + '/' + path)
 
@@ -27,7 +27,7 @@ class StorageIO:
         self.io = None
 
     def __enter__(self) -> IO:
-        self.io = open(self.path, self.mode, encoding=self.encoding)
+        self.io = open(self.path, self.mode, **({} if 'b' in self.mode else {'encoding': self.encoding}))
         return self.io
 
     def __exit__(self, _type, value, traceback):
