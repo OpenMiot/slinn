@@ -141,7 +141,7 @@ class Server:
                         handles += dispatcher.handles
                 sizes = [handle.filter.size(request) for handle in handles]
                 if sizes:
-                    if await self.answer_request(connection, handles[sizes.index(max(sizes))], request,
+                    if self.answer_request(connection, handles[sizes.index(max(sizes))], request,
                                                  data, header, max_requests):
                         return None if connection.closed() else self.handle_request(
                             connection,
@@ -154,7 +154,7 @@ class Server:
                 for dispatcher in self.dispatchers:
                     if dispatcher.check(request.host):
                         for handle in dispatcher.handles:
-                            if await self.answer_request(connection, handle, request, data, header, max_requests):
+                            if self.answer_request(connection, handle, request, data, header, max_requests):
                                 return None if connection.closed() else self.handle_request(
                                     connection,
                                     client_address,
