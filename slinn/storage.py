@@ -14,6 +14,9 @@ class Storage:
 
     def isfile(self, path):
         return os.path.isfile(self.root + '/' + path)
+    
+    def listdir(self, path):
+        return os.listdir(self.root + '/' + path)
 
 
 class StorageIO:
