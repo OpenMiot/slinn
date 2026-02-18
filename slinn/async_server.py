@@ -125,21 +125,25 @@ class AsyncServer(Server):
             except OSError:
                 self.logger.info('Connection closed')
                 return None if connection.closed() else await self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
-            for dispatcher in self.dispatchers:
-                if dispatcher.check(request.host):
-                    if self.smart_navigation:
-                        sizes = [handle.filter.size(request) for handle in dispatcher.handles]
-                        if sizes:
-                            if await self.answer_request(connection, dispatcher.handles[sizes.index(max(sizes))], request,
-                                                         data, header, max_requests):
-                                return None if connection.closed() else await self.handle_request(
-                                    connection,
-                                    client_address,
-                                    wrapped, 
-                                    request.keep_alive.get('timeout', connection._timeout),
-                                    request.keep_alive.get('max', max_requests)
-                                )
-                    else:
+            if self.smart_navigation:
+                handles = []
+                for dispatcher in self.dispatchers:
+                    if dispatcher.check(request.host):
+                        handles += dispatcher.handles
+                sizes = [handle.filter.size(request) for handle in handles]
+                if sizes:
+                    if await self.answer_request(connection, handles[sizes.index(max(sizes))], request,
+                                                    data, header, max_requests):
+                        return None if connection.closed() else await self.handle_request(
+                            connection,
+                            client_address,
+                            wrapped,
+                            request.keep_alive.get('timeout', connection._timeout),
+                            request.keep_alive.get('max', max_requests)
+                        )
+            else:
+                for dispatcher in self.dispatchers:
+                    if dispatcher.check(request.host):
                         for handle in dispatcher.handles:
                             if await self.answer_request(connection, handle, request, data, header, max_requests):
                                 return None if connection.closed() else await self.handle_request(
@@ -192,11 +196,8 @@ class AsyncServer(Server):
             )
 
     async def answer_request(self, connection, handle, request, http_data, http_header, max_requests):
-        #print('a1', handle.filter)
         if not handle.filter.check(request):
             return False
-
-        #print('a2', handle.filter)
         if connection.closed():
             return True
         cor = utils.optional(handle.function,

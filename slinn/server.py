@@ -46,7 +46,7 @@ class Server:
                 pass
         self.dispatchers = dispatchers
         self.logger.info('Server has reloaded')
-    
+
     def exit(self):
         self.logger.critical('Got KeyboardInterrupt, halting the application...')
         if utils.check_socket(self.server_socket):
@@ -113,43 +113,52 @@ class Server:
                 data = data.split(b'\r\n\r\n')
                 header = data[0].decode()
                 if header == '':
-                    return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
+                    return None if connection.closed() else self.handle_request(connection, client_address, wrapped,
+                                                                                max_requests=max_requests)
                 request = Request(header, client_address, connection, self, htrf=self.htrf)
                 self.logger.info(repr(request))
                 request.connection.paste(b'\r\n\r\n'.join(data[1:]))
             except KeyError:
                 self.logger.info('Got KeyError, probably invalid request. Ignore')
-                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped,
+                                                                            max_requests=max_requests)
             except UnicodeDecodeError:
                 self.logger.info('Got UnicodeDecodeError, probably invalid request. Ignore')
-                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped,
+                                                                            max_requests=max_requests)
             except ConnectionResetError:
                 self.logger.info('Connection reset by client')
-                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped,
+                                                                            max_requests=max_requests)
             except OSError:
                 self.logger.info('Connection closed')
-                return None if connection.closed() else self.handle_request(connection, client_address, wrapped, max_requests=max_requests)
-            for dispatcher in self.dispatchers:
-                if dispatcher.check(request.host):
-                    if self.smart_navigation:
-                        sizes = [handle.filter.size(request) for handle in dispatcher.handles]
-                        if sizes:
-                            if self.answer_request(connection, dispatcher.handles[sizes.index(max(sizes))], request,
-                                                   data, header, max_requests):
-                                return None if connection.closed() else self.handle_request(
-                                    connection,
-                                    client_address,
-                                    wrapped, 
-                                    request.keep_alive.get('timeout', connection._timeout),
-                                    request.keep_alive.get('max', max_requests)
-                                )
-                    else:
+                return None if connection.closed() else self.handle_request(connection, client_address, wrapped,
+                                                                            max_requests=max_requests)
+            if self.smart_navigation:
+                handles = []
+                for dispatcher in self.dispatchers:
+                    if dispatcher.check(request.host):
+                        handles += dispatcher.handles
+                sizes = [handle.filter.size(request) for handle in handles]
+                if sizes:
+                    if await self.answer_request(connection, handles[sizes.index(max(sizes))], request,
+                                                 data, header, max_requests):
+                        return None if connection.closed() else self.handle_request(
+                            connection,
+                            client_address,
+                            wrapped,
+                            request.keep_alive.get('timeout', connection._timeout),
+                            request.keep_alive.get('max', max_requests)
+                        )
+            else:
+                for dispatcher in self.dispatchers:
+                    if dispatcher.check(request.host):
                         for handle in dispatcher.handles:
-                            if self.answer_request(connection, handle, request, data, header, max_requests):
+                            if await self.answer_request(connection, handle, request, data, header, max_requests):
                                 return None if connection.closed() else self.handle_request(
                                     connection,
                                     client_address,
-                                    wrapped, 
+                                    wrapped,
                                     request.keep_alive.get('timeout', connection._timeout),
                                     request.keep_alive.get('max', max_requests)
                                 )
@@ -161,7 +170,7 @@ class Server:
             return None if connection.closed() else self.handle_request(
                 connection,
                 client_address,
-                wrapped, 
+                wrapped,
                 request.keep_alive.get('timeout', connection._timeout),
                 request.keep_alive.get('max', max_requests)
             )
@@ -176,7 +185,7 @@ class Server:
                         return None if connection.closed() else self.handle_request(
                             connection,
                             client_address,
-                            wrapped, 
+                            wrapped,
                             request.keep_alive.get('timeout', connection._timeout),
                             request.keep_alive.get('max', max_requests)
                         )
@@ -185,7 +194,7 @@ class Server:
                         return None if connection.closed() else self.handle_request(
                             connection,
                             client_address,
-                            wrapped, 
+                            wrapped,
                             request.keep_alive.get('timeout', connection._timeout),
                             request.keep_alive.get('max', max_requests)
                         )
@@ -193,17 +202,18 @@ class Server:
                     return None if connection.closed() else self.handle_request(
                         connection,
                         client_address,
-                        wrapped, 
+                        wrapped,
                         request.keep_alive.get('timeout', connection._timeout),
                         request.keep_alive.get('max', max_requests)
                     )
             except exceptions.HandlerNotFound:
                 warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
-                connection.send(b'HTTP/1.1 500 Internal Server Error\r\nContent-Length: 25\r\n\r\n500 Internal Server Error')
+                connection.send(
+                    b'HTTP/1.1 500 Internal Server Error\r\nContent-Length: 25\r\n\r\n500 Internal Server Error')
             return None if connection.closed() else self.handle_request(
                 connection,
                 client_address,
-                wrapped, 
+                wrapped,
                 request.keep_alive.get('timeout', connection._timeout),
                 request.keep_alive.get('max', max_requests)
             )
@@ -239,7 +249,7 @@ class Server:
                         self.handle_request(
                             client_socket,
                             (request.ip, request.port),
-                            True, 
+                            True,
                             request.keep_alive.get('timeout', client_socket._timeout),
                             request.keep_alive.get('max', max_requests)
                         )
@@ -268,7 +278,7 @@ class Server:
                     self.handle_request(
                         client_socket,
                         (request.ip, request.port),
-                        True, 
+                        True,
                         request.keep_alive.get('timeout', client_socket._timeout),
                         request.keep_alive.get('max', max_requests)
                     )
