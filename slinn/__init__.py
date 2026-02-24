@@ -32,6 +32,7 @@ from .request import Request, RequestBody
 from .async_request import AsyncRequest, AsyncRequestBody
 from .http_response import HttpResponse
 from .http_redirect import HttpRedirect
+from .http_get_redirect import HttpGETRedirect
 from .empty_http_response import EmptyHttpResponse
 from .http_render import HttpRender
 from .http_api_response import HttpAPIResponse
@@ -53,10 +54,11 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.2',
-    'version_id': '180226D',
+    'version_id': '240226A',
     'meta': {
-        'dies_at': datetime(2026, 4, 18, 23, 59),
-        'is_snapshot': True
+        'dies_at': datetime(2026, 4, 24, 23, 59),
+        'is_snapshot': True,
+        'may_incompatible': False
     }
 }
 version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
@@ -86,3 +88,6 @@ warnings.simplefilter('always', DeprecationWarning)
 
 if VERSION['meta']['is_snapshot'] and datetime.now() > VERSION['meta']['dies_at']:
     exit("Slinn`s version has expired. You need to upgrade")
+
+if VERSION['meta']['may_incompatible']:
+    warnings.warn('Slinn`s version may be incompatible with future releases. DO NOT use it in prod')

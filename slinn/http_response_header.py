@@ -33,7 +33,7 @@ class HttpResponseHeader(HttpResponseChunk):
                    path: str = None,
                    secure: bool = None,
                    same_site: CookieSameSite = None,
-                   attributes: dict = None) -> None:
+                   attributes: dict = None) -> HttpResponseChunk:
         if attributes is None:
             attributes = {}
         attributes.update({
@@ -57,6 +57,7 @@ class HttpResponseHeader(HttpResponseChunk):
                 for key in attributes.keys()
             ])
         ))
+        return self
 
     def make(self, version: str = 'HTTP/1.1') -> bytes:
         self.payload = (f'{version} {self.status}' + '\r\n'

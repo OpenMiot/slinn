@@ -1,4 +1,5 @@
 from . import Request, RequestBody, AsyncWebSocketConnection, utils
+import urllib.parse
 import asyncio
 import socket
 
@@ -14,7 +15,7 @@ class AsyncRequest(Request):
         self.body = AsyncRequestBody(self)
 
     async def respond(self, response_class, *args, **kwargs) -> None:
-        buffer = utils.optional(response_class(*args, **kwargs).make, version = self.version, htrf = self.htrf)
+        buffer = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
         if buffer is None:
             return
         packages = [buffer[x:x + self.server.max_bytes_per_receive] for x in
@@ -29,11 +30,12 @@ class AsyncRequest(Request):
 
     async def recv(self, n_bytes: int) -> bytes:
         return await self.connection.recv(n_bytes)
-    
+
     async def WebSocket(self):
         conn = AsyncWebSocketConnection(self)
         await conn.handshake()
         return conn
+
 
 class AsyncRequestBody(RequestBody):
     _request: AsyncRequest
@@ -50,7 +52,7 @@ class AsyncRequestBody(RequestBody):
         except (TimeoutError, socket.timeout):
             self._pending = False
             return b''
-        
+
     async def receive(self) -> bytes:
         return await self.recv(min(self._request.server.max_bytes_per_receive, self.until_end()))
 
@@ -60,7 +62,7 @@ class AsyncRequestBody(RequestBody):
             if b'\r\n' in b:
                 lines = b.split(b'\r\n', 1)
                 line += lines[0]
-                self._request.connection.paste(b[len(lines[0])+2:])
+                self._request.connection.paste(b[len(lines[0]) + 2:])
                 break
             line += b
         return line
@@ -71,12 +73,15 @@ class AsyncRequestBody(RequestBody):
             data += b
         self._received = len(data)
         return bytes(data)
-    
+
     async def form(self) -> dict:
         if self._request.content_type[0] == 'application/x-www-form-urlencoded':
-            return Request.get_args((await self.getline()).decode())
+            return {
+                key: urllib.parse.unquote(val)
+                for key, val in Request.get_args((await self.getline()).decode()).items()
+            }
         return {}
-    
+
     async def skip(self):
         while not self.end():
             await self.receive()
