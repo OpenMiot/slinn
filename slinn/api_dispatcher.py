@@ -27,3 +27,9 @@ class ApiDispatcher(Dispatcher):
             return wrapper
 
         return decorator
+
+    def static(self, link: str, http_response, *args, **kwargs) -> Dispatcher:
+        return super().static(self.prefix + link, http_response, *args, **kwargs)
+
+    def sstatic(self, link: str, http_response, *args, **kwargs) -> Dispatcher:
+        return super().sstatic(self.prefix + link, http_response, *args, **kwargs)
