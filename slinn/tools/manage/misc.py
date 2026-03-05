@@ -136,7 +136,7 @@ load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip,
 ] + [
     f'sys.path.insert(0, "spm_packages/Plugins/{plugin_zip}.zip");import {plugin_zip}' for plugin_zip in plugins_zip
 ] + [
-    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_dir});import {plugin_dir}' for plugin_dir in plugins_dir
+    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_dir}");import {plugin_dir}' for plugin_dir in plugins_dir
 ]
 
 get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [

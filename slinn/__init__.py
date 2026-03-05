@@ -54,9 +54,9 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.2',
-    'version_id': '050326A',
+    'version_id': '060326A',
     'meta': {
-        'dies_at': datetime(2026, 7, 5, 23, 59),
+        'dies_at': datetime(2026, 7, 6, 23, 59),
         'is_snapshot': True,
         'may_incompatible': False
     }
