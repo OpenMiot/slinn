@@ -20,7 +20,8 @@ setup(name='slinn',
       zip_safe=False,
       entry_points={
             'console_scripts': [
-                  'slinn = __main__:main'
+                  'slinn = slinn.__main__:main',
+                  'spm = slinn.spm:main'
             ],
       }
 )

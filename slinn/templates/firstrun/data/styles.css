@@ -88,11 +88,14 @@ header>span{
     text-align: left;
     margin: 0 15px;
     color: var(--trademark-slinn-color);
+    cursor: default;
+    user-select: none;
 }
 header>a{
     flex-shrink: 10000;
     text-align: right;
     margin: 0 15px;
+    user-select: none;
 }
 tt{
     color: var(--gray-text-color);

@@ -54,9 +54,9 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.2',
-    'version_id': '040326A',
+    'version_id': '050326A',
     'meta': {
-        'dies_at': datetime(2026, 7, 4, 23, 59),
+        'dies_at': datetime(2026, 7, 5, 23, 59),
         'is_snapshot': True,
         'may_incompatible': False
     }
@@ -65,6 +65,10 @@ version = '{} {} v{} {}'.format(*list(VERSION.values())[:-1])
 
 root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
 slinn_root = Storage(root)
+
+
+from .project_api import ProjectAPI
+
 
 Response = utils.rename_class(HttpResponse, 'Response')
 ResponseHeader = utils.rename_class(HttpResponseHeader, 'ResponseHeader')

@@ -1,24 +1,23 @@
-from slinn import Dispatcher, LinkFilter, AnyFilter, HttpResponse, ApiDispatcher, Render
+from slinn import Storage, ApiDispatcher, HttpRender
 import slinn
 
-def read(filename):
-    file = open(filename, 'r', encoding='utf-8')
-    data = file.read()
-    file.close()
-    return data
- 
+
 dp = ApiDispatcher()
+storage = Storage('templates_data/firstrun')
+
 
 @dp.get('styles.css')
-def styles():
-    return Render('templates_data/firstrun/styles.css')
+async def styles():
+    return HttpRender('styles.css', storage=storage)
+
 
 @dp.get('favicon.ico')
-def favicon():
-    return Render('templates_data/firstrun/favicon.ico')
-                       
+async def favicon():
+    return HttpRender('favicon.ico', storage=storage)
+
+
 @dp.get()
-def index():
-    return Render('templates_data/firstrun/slinn.html', ppdata={
+async def index():
+    return HttpRender('slinn.html', storage=storage, ppdata={
         'version': slinn.version
     })

@@ -24,39 +24,47 @@ def create_command(args):
         print(f'{BLUE}{apppath} has already existed{RESET}')
     shutil.copyfile(slinn.root + '/defaults/project/manage.py', f'{apppath}/manage.py')
     shutil.copyfile(slinn.root + '/defaults/project/htrf.py', f'{apppath}/htrf.py')
+    shutil.copyfile(slinn.root + '/defaults/project/hcdp.py', f'{apppath}/hcdp.py')
     shutil.copyfile(slinn.root + '/defaults/project/project.json', f'{apppath}/project.json')
     venv.create(f'{apppath}/venv')
     packages_dir = f'{apppath}/venv/Lib/site-packages' \
                    if platform.system() == 'Windows' else \
                    f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
     try:
-        os.makedirs(packages_dir)
+        os.makedirs(packages_dir, exist_ok=True)
     except FileExistsError:
         pass
     try:
-        shutil.copytree(slinn.root, packages_dir + '/slinn', dirs_exist_ok=True)
+        shutil.copytree(
+            slinn.root,
+            packages_dir + '/slinn',
+            dirs_exist_ok=True
+        )
     except Exception:
         return print(f'{RED}Cannot install slinn to the new virtual environment{RESET}')
     try:
         shutil.copytree(
             os.path.abspath(__import__('pip').__file__).replace('__init__.py', ''),
-            packages_dir + '/pip'
+            packages_dir + '/pip',
+            dirs_exist_ok=True
         )
-    except FileNotFoundError:
+    except (FileNotFoundError, ModuleNotFoundError):
         print(f'{BLUE}pip was not installed{RESET}')
     try:
         shutil.copytree(
             os.path.abspath(__import__('wheel').__file__).replace('__init__.py', ''),
-            packages_dir + '/wheel'
+            packages_dir + '/wheel',
+            dirs_exist_ok=True
         )
-    except FileNotFoundError:
+    except (FileNotFoundError, ModuleNotFoundError):
         print(f'{BLUE}wheel was not installed{RESET}')
     try:
         shutil.copytree(
             os.path.abspath(__import__('setuptools').__file__).replace('__init__.py', ''),
-            packages_dir + '/setuptools'
+            packages_dir + '/setuptools',
+            dirs_exist_ok=True
         )
-    except FileNotFoundError:
+    except (FileNotFoundError, ModuleNotFoundError):
         print(f'{BLUE}setuptools was not installed{RESET}')
     print(f'{GREEN}Project has created{RESET}')
     try:
@@ -86,7 +94,7 @@ def update_command(args):
     os.remove(apppath + '/manage.py')
     shutil.copytree(slinn.root, packages_dir + '/slinn')
     shutil.copyfile(slinn.root + '/defaults/project/manage.py', f'{apppath}/manage.py')
-    print(f'{GREEN}Project has updated{RESET}')
+    return print(f'{GREEN}Project has updated{RESET}')
 
 
 @root_command.subcommand('help')
@@ -116,5 +124,8 @@ def command_not_specified():
     print(f'{RED}Command was not specified{RESET}')
 
 
-if __name__ == '__main__':
+def main():
     root_command(sys.argv[1:])()
+
+if __name__ == '__main__':
+    main()

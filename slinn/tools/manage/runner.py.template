@@ -4,6 +4,7 @@ from htrf import htrf
 from hcdp import hcdp
 import logging
 import asyncio
+import zipimport
 <% imports %>
 
 

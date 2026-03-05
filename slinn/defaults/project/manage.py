@@ -1,6 +1,6 @@
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.misc import (
-    replace_all, add_quotes_to_list, config, get_dispatchers, app_config, load_imports, app_reload
+    replace_all, add_quotes_to_list, config, packages, get_dispatchers, app_config, load_imports, app_reload
 )
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.defaults import APP_CONFIG
@@ -21,9 +21,7 @@ pp = Preprocessor()
 def run_command():
     print('Loading config...')
     cfg = config()
-    dps = get_dispatchers(cfg['apps'], cfg["debug"])
-    if not dps:
-        return print(f'{RED}Dispatchers not found. Check your apps and ./project.json{RESET}')
+    pkgs = packages()
 
     apps_info = []
     for app in cfg['apps']:
@@ -32,7 +30,34 @@ def run_command():
         else:
             apps_info.append('[' + STRIKE + app + NONSTRIKE + ']')
 
-    print(f'{GRAY}Apps: ' + ', '.join(apps_info))
+    plugins_info = []
+    for key, plugin in pkgs['plugins'].items():
+        if plugin['enabled']:
+            plugins_info.append(plugin['displayName'])
+        else:
+            plugins_info.append('[' + STRIKE + plugin['displayName'] + NONSTRIKE + ']')
+
+    plugins_zip = {
+        key: plugin
+        for key, plugin in pkgs['plugins'].items()
+        if plugin['enabled'] and plugin['zip']
+    }
+
+    plugins_dir = {
+        key: plugin
+        for key, plugin in pkgs['plugins'].items()
+        if plugin['enabled'] and not plugin['zip']
+    }
+
+    dps = get_dispatchers(cfg['apps'], plugins_zip, plugins_dir, cfg["debug"])
+    if not dps:
+        return print(f'{RED}Dispatchers not found. Check your apps and ./project.json{RESET}')
+
+    print(GRAY, end='')
+    if apps_info:
+        print('Apps: ' + ', '.join(apps_info))
+    if plugins_info:
+        print('Plugins: ' + ', '.join(plugins_info))
     print('Debug mode ' + ('enabled' if cfg['debug'] else 'disabled'))
     print('Smart navigation ' + ('enabled' if cfg['smart_navigation'] else 'disabled'))
     print(RESET)
@@ -43,8 +68,8 @@ def run_command():
         if 'fullchain' in cfg['ssl'].keys() and 'key' in cfg['ssl'].keys():
             cfg['ssl_fullchain'] = '"' + cfg['ssl']['fullchain'] + '"' if cfg['ssl']['fullchain'] else 'None'
             cfg['ssl_key'] = '"' + cfg['ssl']['key'] + '"' if cfg['ssl']['key'] else 'None'
-        exec(pp.preprocess(f.read(), {
-            'imports': ';'.join(load_imports(cfg['apps'], cfg['debug'])),
+        return exec(pp.preprocess(f.read(), {
+            'imports': ';'.join(load_imports(cfg['apps'], plugins_zip, plugins_dir, cfg['debug'])),
             'reloads': ''.join([app_reload(app) for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
             'server_reload': ','.join([f'{app}.dp' for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
             'dps': dps,
@@ -92,7 +117,7 @@ def create_command(args):
     with open('project.json', 'w') as f:
         json.dump(fj, f, indent=4)
     update()
-    print(f'{GREEN}App successfully created{RESET}')
+    return print(f'{GREEN}App successfully created{RESET}')
 
 
 @root_command.subcommand('delete', ('name', ))
@@ -186,7 +211,7 @@ def migrate_app_command(args):
             }))
     with open(f'{ensure_appname}/config.json', 'w') as f:
         json.dump(APP_CONFIG, f, indent=4)
-    print(f'{GREEN}App successfully migrated{RESET}')
+    return print(f'{GREEN}App successfully migrated{RESET}')
 
 
 @root_command.command_not_exists()

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Callable, Iterable
 from .colorcodes import *
 from .defaults import APP_CONFIG
 from slinn import slinn_root
@@ -105,6 +106,15 @@ def config():
         cfg.update(json.load(f))
     return cfg
 
+def packages():
+    plg = {}
+    with slinn_root('/defaults/project/spm_packages/packages.json', 'r') as f:
+        plg = json.load(f)
+    if os.path.isfile('spm_packages/packages.json'):
+        with open('spm_packages/packages.json') as f:
+            plg.update(json.load(f))
+    return plg
+
 def app_config(app):
     try:
         cfg = APP_CONFIG.copy()
@@ -119,14 +129,20 @@ def app_config(app):
 arg_parse: Callable[[str], str] = lambda arg: (
     base64.urlsafe_b64decode(arg.removeprefix('b64@').encode() + b'==').decode() if arg.startswith('b64@') else arg)
 
-add_quotes_to_list: Callable[[list[str]]] = lambda lst: (f'\'{l}\''for l in lst)
+add_quotes_to_list: Callable[[list[str]], Iterable] = lambda lst: (f'\'{l}\''for l in lst)
 
-load_imports: Callable[[list[str], bool], list[str]] = lambda apps, debug=False: [
+load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
     f'import {app}' for app in apps if not app_config(app)['debug'] or debug
+] + [
+    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_zip}.zip");import {plugin_zip}' for plugin_zip in plugins_zip
+] + [
+    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_dir});import {plugin_dir}' for plugin_dir in plugins_dir
 ]
 
-get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, debug=False: [
+get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
     f'{app}.dp' for app in apps if not app_config(app)['debug'] or debug
+] + [
+    f'{plugin_zip}.dp' for plugin_zip in plugins_zip | plugins_dir
 ]
 
-app_reload : Callable[[str]]= lambda app: f'global {app};{app} = importlib.reload({app});'
+app_reload : Callable[[str], str]= lambda app: f'global {app};{app} = importlib.reload({app});'
