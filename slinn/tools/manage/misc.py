@@ -1,12 +1,18 @@
 from __future__ import annotations
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Generator, Optional
 from .colorcodes import *
 from .defaults import APP_CONFIG
-from slinn import slinn_root
+from slinn import slinn_root, Migration
 import os
 import base64
 import hashlib
 import json
+import glob
+import importlib.util
+import inspect
+import sys
+import zipfile
+import fnmatch
 
 
 def splits(string: str, delimiters=(' ', '\n'), quotes=tuple()):
@@ -99,12 +105,14 @@ def get_dir_checksum(dir):
 
     return hashlib.md5(''.join([checksum for checksum in get_dir_checksums(dir)]).encode()).hexdigest()
 
+
 def config():
     with slinn_root('/defaults/project/project.json', 'r') as f:
         cfg = json.load(f)
     with open('project.json') as f:
         cfg.update(json.load(f))
     return cfg
+
 
 def packages():
     plg = {}
@@ -115,6 +123,7 @@ def packages():
             plg.update(json.load(f))
     return plg
 
+
 def app_config(app):
     try:
         cfg = APP_CONFIG.copy()
@@ -124,6 +133,49 @@ def app_config(app):
     except FileNotFoundError:
         print(f'{RED}{app}/config.json file not found{RESET}')
         exit()
+
+
+class MigrationMeta:
+    def __init__(self, basename: str, cls: object):
+        self.basename = basename
+        self.cls = cls
+        self.applied = False
+
+    def set_applied(self):
+        self.applied = True
+
+
+def load_migration(path: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
+    basename = os.path.basename(path)
+    fullname = f'{package_name}.{basename}' if package_name else basename
+    spec = importlib.util.spec_from_file_location(
+        fullname,
+        path
+    )
+    module = importlib.util.module_from_spec(spec)
+    if package_name:
+        # print(spec.parent, fullname.removesuffix('.py'))
+        # spec.parent = package_name
+        module.__package__ = package_name
+        # module.__package__ = module.__spec__.parent
+    sys.modules[fullname] = module
+    spec.loader.exec_module(module)
+    for key in module.__dict__:
+        obj = getattr(module, key)
+        if inspect.isclass(obj) and issubclass(obj, Migration) and not inspect.isabstract(obj):
+            yield MigrationMeta(basename, obj)
+
+
+def load_migrations(path_pattern: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
+    for path in glob.glob(path_pattern):
+        yield from load_migration(path, package_name)
+
+
+def load_migrations_from_zip(path: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
+    with zipfile.ZipFile(path, 'r') as zf:
+        for path in [name for name in zf.namelist() if fnmatch.fnmatch(name, 'migrations/*.py')]:
+            yield from load_migration(path, package_name)
+
 
 
 arg_parse: Callable[[str], str] = lambda arg: (

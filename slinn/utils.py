@@ -3,6 +3,7 @@ import inspect
 import json
 import re
 import threading
+from abc import ABCMeta
 
 
 optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
