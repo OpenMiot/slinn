@@ -125,8 +125,10 @@ def version_command():
 
 @root_command.command_not_exists()
 def default_command():
-    # print(f'{RED}Command {sys.argv[1].lower()} is not exists{RESET}')
-    subprocess.run([sys.executable, 'manage.py'] + sys.argv[1:])
+    try:
+        subprocess.run([sys.executable, 'manage.py'] + sys.argv[1:])
+    except KeyboardInterrupt:
+        print(f'{BLUE}KeyboardInterrupt{RESET}')
 
 
 @root_command.command_not_specified()
