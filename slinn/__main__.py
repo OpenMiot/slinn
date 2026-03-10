@@ -9,6 +9,7 @@ import os
 import slinn
 import shutil
 import platform
+import stat
 
 
 root_command = Command()
@@ -26,6 +27,15 @@ def create_command(args):
     shutil.copyfile(slinn.root + '/defaults/project/htrf.py', f'{apppath}/htrf.py')
     shutil.copyfile(slinn.root + '/defaults/project/hcdp.py', f'{apppath}/hcdp.py')
     shutil.copyfile(slinn.root + '/defaults/project/project.json', f'{apppath}/project.json')
+    with open(f'{apppath}/start.bat', 'w') as f:
+        f.write(f'{sys.argv[0]} run\r\n')
+    with open(f'{apppath}/start.sh', 'w') as f:
+        executable = sys.argv[0].replace('\\', '/')
+        f.write(f'{executable} run\n')
+    os.chmod(
+        f'{apppath}/start.sh',
+        stat.S_IMODE(os.lstat(f'{apppath}/start.sh').st_mode) | stat.S_IEXEC
+    )
     venv.create(f'{apppath}/venv')
     packages_dir = f'{apppath}/venv/Lib/site-packages' \
                    if platform.system() == 'Windows' else \

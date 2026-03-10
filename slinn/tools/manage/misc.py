@@ -13,6 +13,7 @@ import inspect
 import sys
 import zipfile
 import fnmatch
+import itertools
 
 
 def splits(string: str, delimiters=(' ', '\n'), quotes=tuple()):
@@ -193,8 +194,11 @@ load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip,
 
 get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
     f'{app}.dp' for app in apps if not app_config(app)['debug'] or debug
-] + [
-    f'{plugin_zip}.dp' for plugin_zip in plugins_zip | plugins_dir
-]
+] + list(itertools.chain.from_iterable([
+    [
+        f'{key}.{dispatcher}' for dispatcher in plugin.get('plugin', {}).get('dispatchers', [])
+    ]
+    for key, plugin in (plugins_zip | plugins_dir).items()
+]))
 
 app_reload : Callable[[str], str]= lambda app: f'global {app};{app} = importlib.reload({app});'

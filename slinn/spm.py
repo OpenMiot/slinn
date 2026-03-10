@@ -214,7 +214,11 @@ def install(args):
                     'links': manifest.get('links', []),
                     'enabled': True,
                     'zip': manifest.get('zipSafe', False),
-                    'includes': []
+                    'includes': [],
+                    'dependencies': manifest.get('dependencies', []),
+                    'plugin': manifest.get('plugin', {
+                        'dispatchers': []
+                    })
                 }
                 if manifest.get('zipSafe', True):
                     packages['plugins'][v['pack_key']]['includes'].append(f'spm_packages/Plugins/{v["pack_key"]}.zip')

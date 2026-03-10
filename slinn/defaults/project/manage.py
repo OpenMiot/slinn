@@ -34,11 +34,33 @@ def run_command():
             apps_info.append('[' + STRIKE + app + NONSTRIKE + ']')
 
     plugins_info = []
-    for key, plugin in pkgs['plugins'].items():
+    for plugin in pkgs['plugins'].values():
         if plugin['enabled']:
             plugins_info.append(plugin['displayName'])
         else:
             plugins_info.append('[' + STRIKE + plugin['displayName'] + NONSTRIKE + ']')
+
+    def plugins_sorted(plugins):
+        _plugins = {}
+        for key, plugin in plugins.items():
+            for dependency in plugin.get('dependencies', []):
+                if dependency.split('@')[0] in pkgs['plugins']:
+                    _plugins.update(plugins_sorted({
+                        key: pkgs['plugins'][key]
+                        for key in plugins
+                        if key == dependency.split('@')[0]
+                    }))
+                else:
+                    print(
+                        f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
+                    print(f'Install it via {BOLD}Slinn Package Manager{RESET}:')
+                    print(f'  1. {GRAY}${RESET} {BOLD}spm update{RESET}')
+                    print(f'  2. {GRAY}${RESET} {BOLD}spm install {dependency}{RESET}')
+                    exit(1)
+            _plugins[key] = plugin
+        return _plugins
+
+    pkgs['plugins'] = plugins_sorted(pkgs['plugins'])
 
     plugins_zip = {
         key: plugin
@@ -54,7 +76,7 @@ def run_command():
 
     dps = get_dispatchers(cfg['apps'], plugins_zip, plugins_dir, cfg["debug"])
     if not dps:
-        return print(f'{RED}Dispatchers not found. Check your apps and ./project.json{RESET}')
+        return print(f'{RED}Dispatchers not found. Check your apps, packages and ./project.json{RESET}')
 
     print(GRAY, end='')
     if apps_info:
