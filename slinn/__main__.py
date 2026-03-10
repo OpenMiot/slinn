@@ -128,7 +128,7 @@ def default_command():
     try:
         subprocess.run([sys.executable, 'manage.py'] + sys.argv[1:])
     except KeyboardInterrupt:
-        print(f'{BLUE}KeyboardInterrupt{RESET}')
+        ...
 
 
 @root_command.command_not_specified()
