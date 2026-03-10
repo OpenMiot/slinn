@@ -1,12 +1,12 @@
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.misc import (
     replace_all, add_quotes_to_list, config, packages, get_dispatchers, app_config, load_imports, app_reload,
-    load_migrations, load_migrations_from_zip
+    load_migrations, load_migrations_from_zip, plugins_sorted, load_template
 )
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.defaults import APP_CONFIG
 from slinn.preprocessor import Preprocessor
-from slinn import slinn_root
+from slinn import slinn_root, ProjectAPI
 import sys
 import os
 import shutil
@@ -16,16 +16,28 @@ import asyncio
 import inspect
 import warnings
 
+
 root_command = Command()
 pp = Preprocessor()
+cfg = config()
+pkgs = packages()
+pkgs['plugins'] = plugins_sorted(pkgs['plugins'], pkgs)
+
+plugins_zip = {
+    key: plugin
+    for key, plugin in pkgs['plugins'].items()
+    if plugin['enabled'] and plugin['zip']
+}
+
+plugins_dir = {
+    key: plugin
+    for key, plugin in pkgs['plugins'].items()
+    if plugin['enabled'] and not plugin['zip']
+}
 
 
 @root_command.subcommand('run')
 def run_command():
-    print('Loading config...')
-    cfg = config()
-    pkgs = packages()
-
     apps_info = []
     for app in cfg['apps']:
         if not app_config(app)['debug'] or cfg['debug']:
@@ -39,40 +51,6 @@ def run_command():
             plugins_info.append(plugin['displayName'])
         else:
             plugins_info.append('[' + STRIKE + plugin['displayName'] + NONSTRIKE + ']')
-
-    def plugins_sorted(plugins):
-        _plugins = {}
-        for key, plugin in plugins.items():
-            for dependency in plugin.get('dependencies', []):
-                if dependency.split('@')[0] in pkgs['plugins']:
-                    _plugins.update(plugins_sorted({
-                        key: pkgs['plugins'][key]
-                        for key in plugins
-                        if key == dependency.split('@')[0]
-                    }))
-                else:
-                    print(
-                        f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
-                    print(f'Install it via {BOLD}Slinn Package Manager{RESET}:')
-                    print(f'  1. {GRAY}${RESET} {BOLD}spm update{RESET}')
-                    print(f'  2. {GRAY}${RESET} {BOLD}spm install {dependency}{RESET}')
-                    exit(1)
-            _plugins[key] = plugin
-        return _plugins
-
-    pkgs['plugins'] = plugins_sorted(pkgs['plugins'])
-
-    plugins_zip = {
-        key: plugin
-        for key, plugin in pkgs['plugins'].items()
-        if plugin['enabled'] and plugin['zip']
-    }
-
-    plugins_dir = {
-        key: plugin
-        for key, plugin in pkgs['plugins'].items()
-        if plugin['enabled'] and not plugin['zip']
-    }
 
     dps = get_dispatchers(cfg['apps'], plugins_zip, plugins_dir, cfg["debug"])
     if not dps:
@@ -95,10 +73,8 @@ def run_command():
             cfg['ssl_key'] = '"' + cfg['ssl']['key'] + '"' if cfg['ssl']['key'] else 'None'
         return exec(pp.preprocess(f.read(), {
             'imports': ';'.join(load_imports(cfg['apps'], plugins_zip, plugins_dir, cfg['debug'])),
-            'reloads': ''.join(
-                [app_reload(app) for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
-            'server_reload': ','.join(
-                [f'{app}.dp' for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
+            'reloads': ''.join([app_reload(app) for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
+            'server_reload': ','.join([f'{app}.dp' for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
             'dps': dps,
             **cfg
         }))
@@ -159,7 +135,7 @@ def delete_command(args):
         return print(f'{RESET}Aborted')
     shutil.rmtree(ensure_appname)
     shutil.rmtree(f'{apppath}/templates_data/{ensure_appname}', ignore_errors=True)
-    if len(os.listdir(f'{apppath}/templates_data')) == 0:
+    if os.path.isdir(f'{apppath}/templates_data') and len(os.listdir(f'{apppath}/templates_data')) == 0:
         shutil.rmtree(f'{apppath}/templates_data')
     update()
     return print(f'{GREEN}App successfully deleted{RESET}')
@@ -193,11 +169,11 @@ def version_command():
     print(slinn.version)
 
 
-@root_command.subcommand('template', ('name', 'path'))
+@root_command.subcommand('_template', ('name', 'path'))
 def template_command(args):
     apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
     if 'name' not in args.keys():
-        return print(f'{RED}Template name is not specified{RESET}')
+        return print(f'{RED}Template name not specified{RESET}')
     with open('project.json', 'r') as f:
         fj = json.load(f)
     if 'apps' not in fj.keys():
@@ -222,6 +198,35 @@ def template_command(args):
         print(f'{BLUE}Template {args["name"]} has already installed{RESET}')
     except FileNotFoundError:
         print(f'{BLUE}Template {args["name"]} not found{RESET}')
+
+
+@root_command.subcommand('template', ('template', 'app_name'))
+def _template_command(args):
+    if not {'template', 'app_name'}.issubset(args.keys()):
+        print(f'{RED}Package or app`s name not specified{RESET}')
+        return
+    app_name = replace_all(args['app_name'], '-&$#!@%^().,', '_')
+    if '/' in app_name:
+        print(f'{RED}App`s name invalid{RESET}')
+        return
+    if args['template'] not in pkgs['templates']:
+        print(f'{RED}Template not found{RESET}')
+        return
+    template = load_template(
+        f'spm_packages/Templates/{args["template"]}/template.py',
+        f'spm_packages.Templates.{args["template"]}'
+    )
+    try:
+        ProjectAPI.create_app(app_name, init=False)
+    except slinn.project_api.AppExistsException:
+        print(f'{BLUE}The app named {args["app_name"]} exists{RESET}')
+        return
+    template.install(
+        os.path.abspath(app_name),
+        os.path.abspath(f'spm_packages/Templates/{args["template"]}')
+    )
+    print(f'{GREEN}Template {args["template"]} successfully installed as {app_name}{RESET}')
+
 
 
 @root_command.subcommand('migrate_app', ('name',))
@@ -253,13 +258,9 @@ def apply_all_migrations(args):
         )
     }
 
-    pkgs = packages()
+    exec(';'.join(load_imports(cfg['apps'], plugins_zip, plugins_dir, cfg['debug'])))
 
-    for key in {
-        key: plugin
-        for key, plugin in pkgs['plugins'].items()
-        if plugin['enabled'] and plugin['zip']
-    }:
+    for key in plugins_zip:
         migrations.update({
             migration.cls.__name__ + f'.{key}': migration
             for migration in load_migrations_from_zip(
@@ -268,11 +269,7 @@ def apply_all_migrations(args):
             )
         })
 
-    for key in {
-        key: plugin
-        for key, plugin in pkgs['plugins'].items()
-        if plugin['enabled'] and not plugin['zip']
-    }:
+    for key in plugins_dir:
         migrations.update({
             migration.cls.__name__ + f'.{key}': migration
             for migration in load_migrations(

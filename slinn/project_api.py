@@ -9,7 +9,6 @@ import shutil
 import sys
 import slinn
 
-
 pp = Preprocessor()
 
 
@@ -34,7 +33,7 @@ class ProjectAPI:
             if 'apps' not in project_json.keys():
                 project_json['apps'] = []
             return project_json
-    
+
     @staticmethod
     def update_config(updates: dict | None = None) -> None:
         updates = updates or {}
@@ -49,23 +48,24 @@ class ProjectAPI:
             json.dump(project_json, project, indent=4)
 
     @staticmethod
-    def create_app(name: str, hosts: tuple[str] = ()) -> None:
+    def create_app(name: str, hosts: tuple[str] = (), *, init: bool = True) -> None:
         ensure_appname = replace_all(name, '-&$#!@%^().,', '_')
         if os.path.isdir(ensure_appname):
             raise AppExistsException(name)
         os.mkdir(ensure_appname)
-        with open(f'{ensure_appname}/__init__.py', 'w') as fw:
-            with slinn_root('/defaults/app/__init__.py.template', 'r') as fr:
-                fw.write(pp.preprocess(fr.read(), {
-                    'appname': ensure_appname
-                }))
-        with open(f'{ensure_appname}/app.py', 'w') as fw:
-            with slinn_root('/defaults/app/app.py.template', 'r') as fr:
-                fw.write(pp.preprocess(fr.read(), {
-                    'hosts': ', '.join(add_quotes_to_list(hosts))
-                }))
-        with open(f'{ensure_appname}/config.json', 'w') as f:
-            json.dump(APP_CONFIG, f, indent=4)
+        if init:
+            with open(f'{ensure_appname}/__init__.py', 'w') as fw:
+                with slinn_root('/defaults/app/__init__.py.template', 'r') as fr:
+                    fw.write(pp.preprocess(fr.read(), {
+                        'appname': ensure_appname
+                    }))
+            with open(f'{ensure_appname}/app.py', 'w') as fw:
+                with slinn_root('/defaults/app/app.py.template', 'r') as fr:
+                    fw.write(pp.preprocess(fr.read(), {
+                        'hosts': ', '.join(add_quotes_to_list(hosts))
+                    }))
+            with open(f'{ensure_appname}/config.json', 'w') as f:
+                json.dump(APP_CONFIG, f, indent=4)
         with open('project.json', 'r') as f:
             fj = json.load(f)
         if 'apps' not in fj.keys():
@@ -74,9 +74,10 @@ class ProjectAPI:
         with open('project.json', 'w') as f:
             json.dump(fj, f, indent=4)
         ProjectAPI.update_config()
-    
+
     @staticmethod
-    def create_app_from_template(name, template_name: str, path: str = '.', templates_folder=slinn.root+'/templates') -> None:
+    def create_app_from_template(name, template_name: str, path: str = '.',
+                                 templates_folder=slinn.root + '/templates') -> None:
         apppath = (path + '?').replace('/?', '').replace('?', '')
         config = ProjectAPI.get_config()
         if name in config['apps']:
@@ -151,29 +152,27 @@ class ProjectAPI:
     @staticmethod
     def get_name():
         return ProjectAPI.get_config()['name']
-    
+
     @staticmethod
     def is_ssl():
         config = ProjectAPI.get_config()
         return 'ssl' in config and \
-                'fullchain' in config['ssl'] and \
-                config['ssl']['fullchain'] and \
-                'key' in config['ssl'] and \
-                config['ssl']['key']
-    
+            'fullchain' in config['ssl'] and \
+            config['ssl']['fullchain'] and \
+            'key' in config['ssl'] and \
+            config['ssl']['key']
+
     @staticmethod
     def get_link():
         config = ProjectAPI.get_config()
         is_ssl = ProjectAPI.is_ssl()
         protocol = 'https' if is_ssl else 'http'
         return (
-            f'{protocol}://' +
-            (
-                '0.0.0.0' \
-                    if (config['host'] is None or config['host'] == '') else \
-                ('[' + config['host'] + ']' if ':' in config['host'] else config['host'])
-            ) +
-            f'{(":" + str(config['port']) if config['port'] != 443 else "") if is_ssl else (":" + str(config['port']) if config['port'] != 80 else "")}/'
+                f'{protocol}://' +
+                (
+                    '0.0.0.0' if (config['host'] is None or config['host'] == '') else ('[' + config['host'] + ']' if ':' in config['host'] else config['host'])
+                ) +
+                f'{(":" + str(config['port']) if config['port'] != 443 else "") if is_ssl else (":" + str(config['port']) if config['port'] != 80 else "")}/'
         )
 
     @staticmethod

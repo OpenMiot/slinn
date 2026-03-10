@@ -48,6 +48,7 @@ from .server import Server
 from .async_server import AsyncServer
 from .storage import Storage, StorageIO
 from .migration import Migration
+from .template_protocol import TemplateProtocol
 from . import utils
 
 
@@ -55,7 +56,7 @@ VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.2',
-    'version_id': '100326B',
+    'version_id': '100326C',
     'meta': {
         'dies_at': datetime(2026, 7, 10, 23, 59),
         'is_snapshot': True,

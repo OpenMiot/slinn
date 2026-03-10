@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Callable, Iterable, Generator, Optional
 from .colorcodes import *
 from .defaults import APP_CONFIG
-from slinn import slinn_root, Migration
+from slinn import slinn_root, Migration, TemplateProtocol
 import os
 import base64
 import hashlib
@@ -146,7 +146,7 @@ class MigrationMeta:
         self.applied = True
 
 
-def load_migration(path: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
+def load_module(path: str, package_name: Optional[str] = None) -> object:
     basename = os.path.basename(path)
     fullname = f'{package_name}.{basename}' if package_name else basename
     spec = importlib.util.spec_from_file_location(
@@ -161,6 +161,20 @@ def load_migration(path: str, package_name: Optional[str] = None) -> Generator[M
         # module.__package__ = module.__spec__.parent
     sys.modules[fullname] = module
     spec.loader.exec_module(module)
+    return module
+
+
+def load_template(path: str, package_name: Optional[str] = None) -> TemplateProtocol:
+    module = load_module(path, package_name)
+    for key in module.__dict__:
+        obj = getattr(module, key)
+        if inspect.isclass(obj) and issubclass(obj, TemplateProtocol) and not obj is TemplateProtocol:
+            return obj
+
+
+def load_migration(path: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
+    basename = os.path.basename(path)
+    module = load_module(path, package_name)
     for key in module.__dict__:
         obj = getattr(module, key)
         if inspect.isclass(obj) and issubclass(obj, Migration) and not inspect.isabstract(obj):
@@ -177,6 +191,25 @@ def load_migrations_from_zip(path: str, package_name: Optional[str] = None) -> G
         for path in [name for name in zf.namelist() if fnmatch.fnmatch(name, 'migrations/*.py')]:
             yield from load_migration(path, package_name)
 
+
+def plugins_sorted(plugins, pkgs):
+    _plugins = {}
+    for key, plugin in plugins.items():
+        for dependency in plugin.get('dependencies', []):
+            if dependency.split('@')[0] in pkgs['plugins']:
+                _plugins.update(plugins_sorted({
+                    key: pkgs['plugins'][key]
+                    for key in plugins
+                    if key == dependency.split('@')[0]
+                }, pkgs))
+            else:
+                print(f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
+                print(f'Install it via {BOLD}Slinn Package Manager{RESET}:')
+                print(f'  1. {GRAY}${RESET} {BOLD}spm update{RESET}')
+                print(f'  2. {GRAY}${RESET} {BOLD}spm install {dependency}{RESET}')
+                exit(1)
+        _plugins[key] = plugin
+    return _plugins
 
 
 arg_parse: Callable[[str], str] = lambda arg: (
