@@ -13,7 +13,6 @@ import shutil
 import json
 import slinn
 import asyncio
-import inspect
 import warnings
 
 

@@ -1,6 +1,6 @@
-from . import slinn_root, Preprocessor
+from . import slinn_root, Preprocessor, Storage
 from .tools.manage.misc import (
-    replace_all, add_quotes_to_list
+    replace_all, add_quotes_to_list, packages
 )
 from .tools.manage.defaults import APP_CONFIG
 import os
@@ -170,7 +170,8 @@ class ProjectAPI:
         return (
                 f'{protocol}://' +
                 (
-                    '0.0.0.0' if (config['host'] is None or config['host'] == '') else ('[' + config['host'] + ']' if ':' in config['host'] else config['host'])
+                    '0.0.0.0' if (config['host'] is None or config['host'] == '') else (
+                        '[' + config['host'] + ']' if ':' in config['host'] else config['host'])
                 ) +
                 f'{(":" + str(config['port']) if config['port'] != 443 else "") if is_ssl else (":" + str(config['port']) if config['port'] != 80 else "")}/'
         )
@@ -180,6 +181,15 @@ class ProjectAPI:
         args = [sys.executable] + [sys.argv[0]] + sys.argv[1:]
         os.execv(sys.executable, args)
         os._exit(0)
+
+    @staticmethod
+    def get_plugins():
+        return packages()['plugins']
+
+    @staticmethod
+    def get_plugin_storage(key):
+        plugin = packages()['plugins'][key]
+        return Storage(f'spm_packages/Plugins/{key}.zip') if plugin['zip'] else Storage(f'spm_packages/Plugins/{key}')
 
 
 if __name__ == '__main__':
