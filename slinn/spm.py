@@ -9,6 +9,7 @@ import urllib.error
 import urllib.parse
 import email
 import zipfile
+import shutil
 
 
 version = 'Slinn Package Manager 26.3a'
@@ -44,7 +45,7 @@ def no_args_handler():
     commands_desc = {
         'update': 'update packages metadata from repositories',
         'install': 'install or upgrade package',
-        #'uninstall': 'uninstall package',
+        'uninstall': 'uninstall package',
         #'info': 'display package information',
         #'search': 'search for packages',
         #'list': 'display all installed packages',
@@ -98,7 +99,7 @@ def install(args):
         print(f'{RED}Not in Slinn project directory.{RESET}')
         return
     project = Storage(os.getcwd())
-    if len(args['not_used']) == 0:
+    if len(args.get('not_used', ())) == 0:
         print(f'{GRAY}Nothing to do{RESET}')
         return
     to_install = []
@@ -251,6 +252,61 @@ def install(args):
         except urllib.error.URLError as e:
             print(f'{RED}Failed to request {v["pack_key"]}@{v["repo_key"]}[{v["ver"]}] {GRAY}({e.reason}){RED}.{RESET}')
             return
+    print(f'{GREEN}Packages successfully installed.{RESET}')
+
+
+@root_command.subcommand('uninstall')
+def uninstall(args):
+    if not os.path.isfile(os.getcwd()+'/project.json'):
+        print(f'{RED}Not in Slinn project directory.{RESET}')
+        return
+    project = Storage(os.getcwd())
+    if len(args.get('not_used', ())) == 0:
+        print(f'{GRAY}Nothing to do{RESET}')
+        return
+    to_uninstall = set(args['not_used'])
+    to_remove = []
+    if not project.isfile('spm_packages/packages.json'):
+        print(f'{RED}Packages {", ".join(to_uninstall)} not installed.{RESET}')
+        return
+    with project('spm_packages/packages.json', 'r+') as f:
+        packages = json.load(f)
+        installed = {**packages['plugins'], **packages['templates'], **packages['apps']}
+        if not to_uninstall.issubset(installed.keys()):
+            print(f'{RED}Package{"s" if len(to_uninstall-installed.keys()) > 1 else ""} {", ".join(to_uninstall-installed.keys())} not installed.{RESET}')
+            return
+        uninstalling_list = []
+        for key, package in installed.items():
+            if key not in to_uninstall:
+                continue
+            to_remove.extend(package.get('includes', []))
+            ver = f'v{package["version"]["major"]}.{package["version"]["minor"]}.{package["version"]["patch"]}'
+            uninstalling_list.append(f'{key}{GRAY}[{ver}]{RESET}')
+
+        print(f'Uninstalling {", ".join(uninstalling_list)} would remove:')
+        print(*[f'  - {os.path.abspath(path)}' for path in to_remove], sep='\n')
+        print('Proceed [Y/n] > ', end='')
+        if input().lower().strip() not in ('', 'y', 'yes'):
+            print(f'{GRAY}Aborted by user{RESET}')
+            return
+        for path in to_remove:
+            if os.path.exists(path):
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
+                if os.path.isfile(path):
+                    os.remove(path)
+                if os.path.islink(path):
+                    os.unlink(path)
+
+        for key in to_uninstall:
+            packages['plugins'].pop(key, None)
+            packages['templates'].pop(key, None)
+            packages['apps'].pop(key, None)
+        f.seek(0)
+        f.truncate()
+        json.dump(packages, f, indent=4, ensure_ascii=False)
+        print(f'{GREEN}Packages successfully uninstalled.{RESET}')
+
 
 
 @root_command.subcommand('list-repos')
