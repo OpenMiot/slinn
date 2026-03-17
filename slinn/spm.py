@@ -12,7 +12,7 @@ import zipfile
 import shutil
 
 
-version = 'Slinn Package Manager 26.3c'
+version = 'Slinn Package Manager 26.3d'
 root_command = Command()
 
 spm_config = {
@@ -46,9 +46,9 @@ def no_args_handler():
         'update': 'update packages metadata from repositories',
         'install': 'install or upgrade package',
         'uninstall': 'uninstall package',
-        #'info': 'display package information',
+        'info': 'display package information',
         #'search': 'search for packages',
-        #'list': 'display all installed packages',
+        'list': 'display all installed packages',
         'list-repos': 'display all repositories',
         'list-packages': 'display all packages in repositories',
         'help': 'display this message',
@@ -211,6 +211,7 @@ def install(args):
                     'displayName': manifest.get('displayName', v['pack_key']),
                     'description': manifest.get('description', v['package']['description']),
                     'version': manifest.get('version', v['package']['version']),
+                    'repository': v['repo_key'],
                     'contributors': manifest.get('contributors', []),
                     'links': manifest.get('links', []),
                     'enabled': True,
@@ -308,6 +309,68 @@ def uninstall(args):
         print(f'{GREEN}Packages successfully uninstalled.{RESET}')
 
 
+@root_command.subcommand('info', ('key', ))
+def info_command(args):
+    if not os.path.isfile(os.getcwd()+'/project.json'):
+        print(f'{RED}Not in Slinn project directory.{RESET}')
+        return
+    if 'key' not in args:
+        print(f'{RED}Package is not specified.{RESET}')
+        return
+    project = Storage(os.getcwd())
+    packages = {
+        'plugins': {},
+        'templates': {},
+        'apps': {}
+    }
+    if project.isfile('spm_packages/packages.json'):
+        with project('spm_packages/packages.json', 'r') as f:
+            packages.update(json.load(f))
+    if args['key'] not in packages['plugins'] | packages['templates'] | packages['apps']:
+        print(f'{RED}Package {args["key"]} not found.{RESET}')
+        return
+    key = args['key']
+    if key in packages['plugins']:
+        plugin = packages['plugins'][key]
+        ver = f'v{plugin["version"]["major"]}.{plugin["version"]["minor"]}.{plugin["version"]["patch"]}'
+        links = ''.join([f'\n  - {link["displayName"]} [{link["url"]}]' for link in plugin['links']])
+        contributors = ''.join([f'\n  - {cont["name"]} [{cont["email"]}]' for cont in plugin['contributors']])
+        dependencies = ''.join([f'\n  - {dep}' for dep in plugin['dependencies']])
+        print(
+            f'Plugin {BOLD}{plugin["displayName"]}{RESET}\n'
+            f'    {plugin["description"]}\n\n'
+            f'Version {ver}\n'
+            f'Key {key}@{plugin["repository"]}\n'
+            f'{f"{GREEN}Enabled{RESET}" if plugin["enabled"] else f"{YELLOW}Disabled{RESET}"}'
+            f'{f"\n\n{BOLD}Links{RESET}:" if links else ""}{links}'
+            f'{f"\n\n{BOLD}Contributors{RESET}:" if contributors else ""}{contributors}'
+            f'{f"\n\n{BOLD}Dependencies{RESET}:" if dependencies else ""}{dependencies}'
+        )
+
+@root_command.subcommand('list')
+def list_command():
+    if not os.path.isfile(os.getcwd() + '/project.json'):
+        print(f'{RED}Not in Slinn project directory.{RESET}')
+        return
+    project = Storage(os.getcwd())
+    packages = {
+        'plugins': {},
+        'templates': {},
+        'apps': {}
+    }
+    if project.isfile('spm_packages/packages.json'):
+        with project('spm_packages/packages.json', 'r') as f:
+            packages.update(json.load(f))
+    if not packages['plugins'] | packages['templates'] | packages['apps']:
+        print(f'{YELLOW}No packages are installed.{RESET}')
+        return
+    print(f'{BOLD}Plugins:{RESET}')
+    for key, plugin in packages['plugins'].items():
+        ver = f'v{plugin["version"]["major"]}.{plugin["version"]["minor"]}.{plugin["version"]["patch"]}'
+        print(f'{key}@{plugin["repository"]}')
+        print(f'    {plugin["displayName"]}{GRAY}[{ver}]{RESET} — {plugin["description"]}')
+
+
 
 @root_command.subcommand('list-repos')
 def list_repos():
@@ -338,6 +401,11 @@ def list_packages():
 @root_command.subcommand('version')
 def display_version():
     print(version)
+
+
+@root_command.command_not_exists()
+def command_not_exists():
+    print(f'{RED}Command {BOLD}{sys.argv[1]}{RESET}{RED} not found{RESET}')
 
 
 
