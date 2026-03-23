@@ -54,15 +54,16 @@ def create_command(args):
             dirs_exist_ok=True
         )
         if platform.system() == 'Windows':
+            scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
             shutil.copyfile(
-                '/'.join(sys.argv[0].split('/')[:-1] + ['slinn.exe']),
+                scripts_dir + '/slinn.exe',
                 binaries_dir + '/slinn.exe'
             )
             shutil.copyfile(
-                '/'.join(sys.argv[0].split('/')[:-1] + ['spm.exe']),
+                scripts_dir + '/spm.exe',
                 binaries_dir + '/spm.exe'
             )
-    except Exception:
+    except Exception as e:
         return print(f'{RED}Cannot install slinn to the new virtual environment{RESET}')
     try:
         shutil.copytree(
