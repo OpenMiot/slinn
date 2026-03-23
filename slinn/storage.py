@@ -15,7 +15,7 @@ class PackageType(enum.Enum):
 
 class Storage:
     def __init__(self, root, package: Optional[str] = None):
-        if not os.path.isdir(root):
+        if not os.path.exists(root) and not os.path.isdir(root):
             os.makedirs(root, exist_ok=True)
         self.root = root
         self.ctx = {}

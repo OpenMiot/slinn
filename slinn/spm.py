@@ -185,6 +185,8 @@ def install(args):
         return
 
     project.makedirs('spm_packages/Plugins')
+    project.makedirs('spm_packages/Templates')
+    project.makedirs('spm_packages/Apps')
     packages = {
         'plugins': {},
         'templates': {},
@@ -242,6 +244,27 @@ def install(args):
                         with zipfile.ZipFile(v['path']) as zf:
                             zf.extractall(project.get_path(f'spm_packages/Plugins/{v["pack_key"]}'))
                         print(f'  - Reinstalled {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
+            elif manifest['type'] == 'template':
+                packages['templates'][v['pack_key']] = {
+                    'displayName': manifest.get('displayName', v['pack_key']),
+                    'description': manifest.get('description', v['package']['description']),
+                    'version': manifest.get('version', v['package']['version']),
+                    'repository': v['repo_key'],
+                    'contributors': manifest.get('contributors', []),
+                    'links': manifest.get('links', []),
+                    'includes': [],
+                    'dependencies': manifest.get('dependencies', [])
+                }
+                packages['templates'][v['pack_key']]['includes'].append(f'spm_packages/Templates/{v["pack_key"]}')
+                if not project.isdir(f'spm_packages/Templates/{v["pack_key"]}'):
+                    with zipfile.ZipFile(v['path']) as zf:
+                        zf.extractall(project.get_path(f'spm_packages/Templates/{v["pack_key"]}'))
+                    print(f'  - Installed {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
+                else:
+                    project.rmtree(f'spm_packages/Templates/{v["pack_key"]}')
+                    with zipfile.ZipFile(v['path']) as zf:
+                        zf.extractall(project.get_path(f'spm_packages/Templates/{v["pack_key"]}'))
+                    print(f'  - Reinstalled {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
             else:
                 print(f'  - {RED}{v["pack_key"]}@{v["repo_key"]}[{v["ver"]}] package type {manifest["type"]} is not supported.{RESET}')
                 return
