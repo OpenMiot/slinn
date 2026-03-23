@@ -12,7 +12,7 @@ import zipfile
 import shutil
 
 
-version = 'Slinn Package Manager 26.3d'
+version = 'Slinn Package Manager 26.3e'
 root_command = Command()
 
 spm_config = {

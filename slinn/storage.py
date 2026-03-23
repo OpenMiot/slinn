@@ -36,8 +36,6 @@ class Storage:
             else:
                 self._package_type = PackageType.FILESYSTEM
                 self._package_path = spec.submodule_search_locations[0]
-        else:
-            os.makedirs(root, exist_ok=True)
 
     def __call__(self, path, mode, encoding='utf-8'):
         return StorageIO(self.get_path(path), mode, encoding, self.package, self._package_type, self._package_zip)
