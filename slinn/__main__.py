@@ -36,7 +36,10 @@ def create_command(args):
         f'{apppath}/start.sh',
         stat.S_IMODE(os.lstat(f'{apppath}/start.sh').st_mode) | stat.S_IEXEC
     )
-    venv.create(f'{apppath}/venv')
+    venv.create(f'{apppath}/venv', with_pip=True)
+    binaries_dir = f'{apppath}/venv/Scripts' \
+                   if platform.system() == 'Windows' else \
+                   f'{apppath}/venv/bin'
     packages_dir = f'{apppath}/venv/Lib/site-packages' \
                    if platform.system() == 'Windows' else \
                    f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
@@ -50,16 +53,17 @@ def create_command(args):
             packages_dir + '/slinn',
             dirs_exist_ok=True
         )
+        if platform.system() == 'Windows':
+            shutil.copyfile(
+                '/'.join(sys.argv[0].split('/')[:-1] + ['slinn.exe']),
+                binaries_dir + '/slinn.exe'
+            )
+            shutil.copyfile(
+                '/'.join(sys.argv[0].split('/')[:-1] + ['spm.exe']),
+                binaries_dir + '/spm.exe'
+            )
     except Exception:
         return print(f'{RED}Cannot install slinn to the new virtual environment{RESET}')
-    try:
-        shutil.copytree(
-            os.path.abspath(__import__('pip').__file__).replace('__init__.py', ''),
-            packages_dir + '/pip',
-            dirs_exist_ok=True
-        )
-    except (FileNotFoundError, ModuleNotFoundError):
-        print(f'{BLUE}pip was not installed{RESET}')
     try:
         shutil.copytree(
             os.path.abspath(__import__('wheel').__file__).replace('__init__.py', ''),
