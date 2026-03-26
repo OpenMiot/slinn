@@ -43,7 +43,7 @@ def get_args(expecting, text):
         return {}
     args = {'not_used': []}
     d_s = ('\n', ' ')
-    q_s= ('"', "'", '`')
+    q_s = ('"', "'", '`')
     spl_s = splits(text, d_s, q_s)
     i = 0
     while i < len(spl_s):
@@ -80,7 +80,7 @@ def get_args(expecting, text):
     return args
 
 
-def replace_all(text: str, sss: list[str]|str, ss2: str) -> str:
+def replace_all(text: str, sss: list[str] | str, ss2: str) -> str:
     for ss1 in sss:
         text = text.replace(ss1, ss2)
     return text
@@ -137,9 +137,10 @@ def app_config(app):
 
 
 class MigrationMeta:
-    def __init__(self, basename: str, cls: object):
+    def __init__(self, basename: str, cls: object, display: str):
         self.basename = basename
         self.cls = cls
+        self.display = display
         self.applied = False
 
     def set_applied(self):
@@ -147,8 +148,9 @@ class MigrationMeta:
 
 
 def load_module(path: str, package_name: Optional[str] = None) -> object:
+    print(path)
     basename = os.path.basename(path)
-    fullname = f'{package_name}.{basename}' if package_name else basename
+    fullname = f'{package_name}.{basename.removesuffix(".py")}' if package_name else basename
     spec = importlib.util.spec_from_file_location(
         fullname,
         path
@@ -157,6 +159,7 @@ def load_module(path: str, package_name: Optional[str] = None) -> object:
     if package_name:
         # print(spec.parent, fullname.removesuffix('.py'))
         # spec.parent = package_name
+        # print(package_name)
         module.__package__ = package_name
         # module.__package__ = module.__spec__.parent
     sys.modules[fullname] = module
@@ -165,6 +168,8 @@ def load_module(path: str, package_name: Optional[str] = None) -> object:
 
 
 def load_template(path: str, package_name: Optional[str] = None) -> TemplateProtocol:
+    # TODO: stop using `load_module`
+
     module = load_module(path, package_name)
     for key in module.__dict__:
         obj = getattr(module, key)
@@ -172,24 +177,39 @@ def load_template(path: str, package_name: Optional[str] = None) -> TemplateProt
             return obj
 
 
-def load_migration(path: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
-    basename = os.path.basename(path)
-    module = load_module(path, package_name)
-    for key in module.__dict__:
-        obj = getattr(module, key)
-        if inspect.isclass(obj) and issubclass(obj, Migration) and not inspect.isabstract(obj):
-            yield MigrationMeta(basename, obj)
+def load_migrations(package_path: str, package_key: str, is_zip: bool) -> Generator[MigrationMeta, ...]:
+    imported_modules = set()
 
+    def _load_migrations(internal_path: str):
+        modname = internal_path \
+            .removeprefix(package_path) \
+            .replace('\\', '/') \
+            .replace('/', '.') \
+            .removeprefix('.') \
+            .removesuffix('.py') \
+            .removesuffix('.__init__')
+        basename = os.path.basename(internal_path)
+        module = importlib.import_module(modname)
+        imported_modules.add(modname)
+        for key in module.__dict__:
+            obj = getattr(module, key)
+            if (inspect.isclass(obj) and
+                    issubclass(obj, Migration) and
+                    not inspect.isabstract(obj)):
+                yield MigrationMeta(basename, obj, f'{basename}@{package_key}')
 
-def load_migrations(path_pattern: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
-    for path in glob.glob(path_pattern):
-        yield from load_migration(path, package_name)
-
-
-def load_migrations_from_zip(path: str, package_name: Optional[str] = None) -> Generator[MigrationMeta, ...]:
-    with zipfile.ZipFile(path, 'r') as zf:
-        for path in [name for name in zf.namelist() if fnmatch.fnmatch(name, 'migrations/*.py')]:
-            yield from load_migration(path, package_name)
+    sys.path.insert(0, package_path)
+    if is_zip:
+        with zipfile.ZipFile(package_path, 'r') as zf:
+            for internal_path in zf.namelist():
+                if fnmatch.fnmatch(internal_path, 'migrations/*.py'):
+                    yield from _load_migrations(internal_path)
+    else:
+        for internal_path in glob.glob(os.path.join(package_path, 'migrations/*.py')):
+            yield from _load_migrations(internal_path)
+    sys.path.pop(0)
+    for imported_module in imported_modules:
+        del sys.modules[imported_module]
 
 
 def plugins_sorted(plugins, pkgs):
@@ -203,7 +223,8 @@ def plugins_sorted(plugins, pkgs):
                     if key == dependency.split('@')[0]
                 }, pkgs))
             else:
-                print(f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
+                print(
+                    f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
                 print(f'Install it via {BOLD}Slinn Package Manager{RESET}:')
                 print(f'  1. {GRAY}${RESET} {BOLD}spm update{RESET}')
                 print(f'  2. {GRAY}${RESET} {BOLD}spm install {dependency}{RESET}')
@@ -215,18 +236,39 @@ def plugins_sorted(plugins, pkgs):
 arg_parse: Callable[[str], str] = lambda arg: (
     base64.urlsafe_b64decode(arg.removeprefix('b64@').encode() + b'==').decode() if arg.startswith('b64@') else arg)
 
-add_quotes_to_list: Callable[[list[str]], Iterable] = lambda lst: (f'\'{l}\''for l in lst)
+add_quotes_to_list: Callable[[list[str]], Iterable] = lambda lst: (f'\'{l}\'' for l in lst)
 
 load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
-    f'import {app}' for app in apps if not app_config(app)['debug'] or debug
+   f'import {app}'
+   for app
+   in apps
+   if not
+      app_config(
+          app)[
+          'debug'] or debug
 ] + [
-    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_zip}.zip");import {plugin_zip}' for plugin_zip in plugins_zip
+   f'sys.path.insert(0, "spm_packages/Plugins/{plugin_zip}.zip");import {plugin_zip};sys.path.pop(0)'
+   for
+   plugin_zip
+   in
+   plugins_zip
 ] + [
-    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_dir}");import {plugin_dir}' for plugin_dir in plugins_dir
+   f'sys.path.insert(0, "spm_packages/Plugins/{plugin_dir}");import {plugin_dir};sys.path.pop(0)'
+   for
+   plugin_dir
+   in
+   plugins_dir
 ]
 
 get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
-    f'{app}.dp' for app in apps if not app_config(app)['debug'] or debug
+  f'{app}.dp'
+  for
+  app in
+  apps
+  if not
+     app_config(
+         app)[
+         'debug'] or debug
 ] + list(itertools.chain.from_iterable([
     [
         f'{key}.{dispatcher}' for dispatcher in plugin.get('plugin', {}).get('dispatchers', [])
@@ -234,4 +276,4 @@ get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_z
     for key, plugin in (plugins_zip | plugins_dir).items()
 ]))
 
-app_reload : Callable[[str], str]= lambda app: f'global {app};{app} = importlib.reload({app});'
+app_reload: Callable[[str], str] = lambda app: f'global {app};{app} = importlib.reload({app});'

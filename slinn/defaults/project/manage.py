@@ -1,7 +1,7 @@
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.misc import (
     replace_all, add_quotes_to_list, config, packages, get_dispatchers, app_config, load_imports, app_reload,
-    load_migrations, load_migrations_from_zip, plugins_sorted, load_template
+    load_migrations, plugins_sorted, load_template
 )
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.defaults import APP_CONFIG
@@ -13,7 +13,6 @@ import shutil
 import json
 import slinn
 import asyncio
-import warnings
 
 
 root_command = Command()
@@ -247,33 +246,25 @@ def migrate_app_command(args):
 
 @root_command.subcommand('makemigrations')
 def apply_all_migrations(args):
-    warnings.filterwarnings("ignore", category=DeprecationWarning)  # TODO: fix warnings
-
     migrations = {
         migration.cls.__name__: migration
         for migration in load_migrations(
-            os.path.join(os.path.dirname(__file__), f'migrations/*.py'),
-            'migrations'
+            os.path.dirname(__file__),
+            ProjectAPI.get_name(),
+            False
         )
     }
 
     exec(';'.join(load_imports(cfg['apps'], plugins_zip, plugins_dir, cfg['debug'])))
 
-    for key in plugins_zip:
-        migrations.update({
-            migration.cls.__name__ + f'.{key}': migration
-            for migration in load_migrations_from_zip(
-                os.path.join(os.path.dirname(__file__), f'spm_packages/Plugins/{key}.zip'),
-                f'spm_packages.Plugins.{key}.migrations'
-            )
-        })
-
-    for key in plugins_dir:
+    for key in plugins_zip | plugins_dir:
+        is_zip = (plugins_zip | plugins_dir)[key]['zip']
         migrations.update({
             migration.cls.__name__ + f'.{key}': migration
             for migration in load_migrations(
-                os.path.join(os.path.dirname(__file__), f'spm_packages/Plugins/{key}/migrations/*.py'),
-                f'spm_packages.Plugins.{key}.migrations'
+                os.path.join(os.path.dirname(__file__), f'spm_packages/Plugins/{key}' + ('.zip' if is_zip else '')),
+                key,
+                is_zip
             )
         })
 
@@ -284,11 +275,10 @@ def apply_all_migrations(args):
         for dependency in migration.dependencies:
             if not migrations[dependency].applied:
                 await check_and_apply_migration(migrations[dependency])
-        print(f'{GRAY}  - Checking {migration_meta.cls.__name__} from migrations/{migration_meta.basename}... ', end='')
+        print(f'{GRAY}  - Checking {migration_meta.cls.__name__} from {migration_meta.display}... ', end='')
         if await migration.check():
             print(f'{GREEN}+{RESET}')
-            print(
-                f'{GRAY}  - Applying {migration_meta.cls.__name__} from migrations/{migration_meta.basename}...{RESET}')
+            print(f'{GRAY}  - Applying {migration_meta.cls.__name__} from {migration_meta.display}...{RESET}')
             await migration.apply()
         else:
             print(f'{RED}-{RESET}')
@@ -298,8 +288,6 @@ def apply_all_migrations(args):
         if migration_meta.applied:
             continue
         asyncio.run(check_and_apply_migration(migration_meta))
-
-    warnings.filterwarnings("default", category=DeprecationWarning)
 
 
 @root_command.command_not_exists()
