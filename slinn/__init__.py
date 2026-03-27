@@ -2,7 +2,8 @@ import os
 import sys
 import inspect
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
+from string import ascii_uppercase
 from .address import Address
 from .handle import Handle
 from .i_middleware import IMiddleware
@@ -52,13 +53,15 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
+__PD, __PI = datetime(2026, 3, 28), 1
+
 VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
     'version': '2.3.2',
-    'version_id': '270326B',
+    'version_id': __PD.strftime('%d%m%y') + ascii_uppercase[__PI - 1],
     'meta': {
-        'dies_at': datetime(2026, 7, 27, 23, 59),
+        'dies_at': __PD + timedelta(days=120),
         'is_snapshot': True,
         'may_incompatible': False
     }

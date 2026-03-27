@@ -140,7 +140,7 @@ class RequestBody:
     def form(self) -> dict:
         if self._request.content_type[0] == 'application/x-www-form-urlencoded':
             return {
-                key: urllib.parse.unquote(val)
+                key: urllib.parse.unquote_plus(val)
                 for key, val in Request.get_args((self.getline()).decode()).items()
             }
         return {}
