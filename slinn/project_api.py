@@ -189,7 +189,7 @@ class ProjectAPI:
     @staticmethod
     def get_plugin_storage(key):
         plugin = packages()['plugins'][key]
-        return Storage(f'spm_packages/Plugins/{key}.zip') if plugin['zip'] else Storage(f'spm_packages/Plugins/{key}')
+        return Storage('', zip_file=f'spm_packages/Plugins/{key}.zip') if plugin['zip'] else Storage(f'spm_packages/Plugins/{key}')
 
 
 if __name__ == '__main__':

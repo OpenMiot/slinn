@@ -148,7 +148,6 @@ class MigrationMeta:
 
 
 def load_module(path: str, package_name: Optional[str] = None) -> object:
-    print(path)
     basename = os.path.basename(path)
     fullname = f'{package_name}.{basename.removesuffix(".py")}' if package_name else basename
     spec = importlib.util.spec_from_file_location(
@@ -223,8 +222,7 @@ def plugins_sorted(plugins, pkgs):
                     if key == dependency.split('@')[0]
                 }, pkgs))
             else:
-                print(
-                    f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
+                print(f'{RED}Dependency {dependency.split("@")[0]} for {plugin["displayName"]} plugin is not resolved.{RESET}')
                 print(f'Install it via {BOLD}Slinn Package Manager{RESET}:')
                 print(f'  1. {GRAY}${RESET} {BOLD}spm update{RESET}')
                 print(f'  2. {GRAY}${RESET} {BOLD}spm install {dependency}{RESET}')
@@ -239,36 +237,17 @@ arg_parse: Callable[[str], str] = lambda arg: (
 add_quotes_to_list: Callable[[list[str]], Iterable] = lambda lst: (f'\'{l}\'' for l in lst)
 
 load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
-   f'import {app}'
-   for app
-   in apps
-   if not
-      app_config(
-          app)[
-          'debug'] or debug
-] + [
    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_zip}.zip");import {plugin_zip};sys.path.pop(0)'
-   for
-   plugin_zip
-   in
-   plugins_zip
+   for plugin_zip in plugins_zip
 ] + [
    f'sys.path.insert(0, "spm_packages/Plugins/{plugin_dir}");import {plugin_dir};sys.path.pop(0)'
-   for
-   plugin_dir
-   in
-   plugins_dir
+   for plugin_dir in plugins_dir
+] + [
+   f'import {app}' for app in apps if not app_config(app)['debug'] or debug
 ]
 
 get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
-  f'{app}.dp'
-  for
-  app in
-  apps
-  if not
-     app_config(
-         app)[
-         'debug'] or debug
+  f'{app}.dp' for app in apps if not app_config(app)['debug'] or debug
 ] + list(itertools.chain.from_iterable([
     [
         f'{key}.{dispatcher}' for dispatcher in plugin.get('plugin', {}).get('dispatchers', [])

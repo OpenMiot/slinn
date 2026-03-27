@@ -14,9 +14,10 @@ class PackageType(enum.Enum):
 
 
 class Storage:
-    def __init__(self, root, package: Optional[str] = None):
-        if not os.path.exists(root) and not os.path.isdir(root):
+    def __init__(self, root, package: Optional[str] = None, *, zip_file: bool = False):
+        if not os.path.exists(root) and not os.path.isdir(root) and not package and not zip_file:
             os.makedirs(root, exist_ok=True)
+
         self.root = root
         self.ctx = {}
         self.package = package
@@ -36,6 +37,9 @@ class Storage:
             else:
                 self._package_type = PackageType.FILESYSTEM
                 self._package_path = spec.submodule_search_locations[0]
+        elif zip_file:
+            self._package_zip = zip_file
+            self._package_type = PackageType.ZIP
 
     def __call__(self, path, mode, encoding='utf-8'):
         return StorageIO(self.get_path(path), mode, encoding, self.package, self._package_type, self._package_zip)
@@ -57,22 +61,22 @@ class Storage:
             return False
 
     def isdir(self, path):
-        if not self._package_zip:
+        if self._package_type != PackageType.ZIP:
             return os.path.isdir(self.get_path(path))
         else:
             with zipfile.ZipFile(self._package_zip) as zf:
-                if self.get_path(path) in [info.filename for info in zf.infolist() if info.is_dir()]:
+                if self.get_path(path) in [info.filename.strip('/').strip() for info in zf.infolist() if info.is_dir()]:
                     return True
             return False
 
     def listdir(self, path):
-        if not self._package_zip:
+        if self._package_type != PackageType.ZIP:
             return os.listdir(self.get_path(path))
         else:
             with zipfile.ZipFile(self._package_zip) as zf:
                 _path = self.get_path(path).strip('/')
                 return list(set([
-                    name.strip('/').removeprefix(_path).strip('/').strip()
+                    name.strip('/').removeprefix(_path).strip('/').strip().split('/')[0]
                     for name in zf.namelist()
                     if name.strip('/').startswith(_path) and name.removeprefix(_path).strip('/').strip()
                 ]))
@@ -95,18 +99,23 @@ class Storage:
 
     def get_path(self, path: str) -> str:
         if self.package is None:
-            return os.path.join(self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').strip('/')
-        if self._package_type == PackageType.FILESYSTEM:
-            return os.path.join(self._package_path, self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').strip('/')
+            return os.path.join(self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').strip(
+                '/')
+        elif self._package_type == PackageType.FILESYSTEM:
+            return os.path.join(self._package_path, self.root, path.lstrip('/')).replace('\\', '/').replace('//',
+                                                                                                            '/').rstrip(
+                '/.').strip('/')
         else:
-            return f"{self.package}/{self.root}/{path.lstrip('/')}".replace('\\', '/').replace('//', '/').rstrip('/.').strip('/').replace('/./', '/')
+            return f"{self.package}/{self.root}/{path.lstrip('/')}".replace('\\', '/').replace('//', '/').rstrip(
+                '/.').strip('/').replace('/./', '/')
 
     def substorage(self, path):
-        return Storage(self.get_path(path), self.package)
+        return Storage(self.get_path(path), self.package, zip_file=self._package_zip if self._package_zip else False)
 
 
 class StorageIO:
-    def __init__(self, path, mode, encoding='utf-8', package: Optional[str] = None, _package_type: Optional[PackageType] = None
+    def __init__(self, path, mode, encoding='utf-8', package: Optional[str] = None,
+                 _package_type: Optional[PackageType] = None
                  , _package_zip: Optional[str] = None):
         self.path = path.replace('//', '/')
         self.mode = mode
@@ -118,16 +127,15 @@ class StorageIO:
 
     def __enter__(self) -> IO:
         kwargs = {} if 'b' in self.mode else {'encoding': self.encoding}
-        if self.package:
-            if self._package_type == PackageType.FILESYSTEM:
-                self.io = ir.files(self.package).joinpath(self.path).open(self.mode, **kwargs)
-            elif self._package_type == PackageType.ZIP:
-                if 'b' in self.mode:
-                    with zipfile.ZipFile(self._package_zip) as zf:
-                        self.io = zf.open(self.path, self.mode.replace('b', ''), **kwargs)
-                else:
-                    with zipfile.ZipFile(self._package_zip) as zf:
-                        self.io = io.TextIOWrapper(zf.open(self.path, self.mode), **kwargs)
+        if self._package_type == PackageType.FILESYSTEM:
+            self.io = ir.files(self.package).joinpath(self.path).open(self.mode, **kwargs)
+        elif self._package_type == PackageType.ZIP:
+            if 'b' in self.mode:
+                with zipfile.ZipFile(self._package_zip) as zf:
+                    self.io = zf.open(self.path, self.mode.replace('b', ''), **kwargs)
+            else:
+                with zipfile.ZipFile(self._package_zip) as zf:
+                    self.io = io.TextIOWrapper(zf.open(self.path, self.mode), **kwargs)
         else:
             self.io = open(self.path, self.mode, **kwargs)
         return self.io
