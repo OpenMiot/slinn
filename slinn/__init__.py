@@ -7,7 +7,6 @@ from string import ascii_uppercase
 from .address import Address
 from .handle import Handle
 from .i_middleware import IMiddleware
-from .file import File
 from .preprocessor import Preprocessor
 from .tcp_response_chunk import TCPResponseChunk
 from .http_response_chunk import HttpResponseChunk
@@ -53,7 +52,7 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
-__PD, __PI = datetime(2026, 3, 28), 2
+__PD, __PI = datetime(2026, 3, 28), 3
 
 VERSION = {
     'name': 'Slinn',

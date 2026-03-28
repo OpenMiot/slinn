@@ -12,11 +12,10 @@ class Filter:
         self.filter = _filter
         self.methods = methods
 
-    def check(self, request: Request) -> bool:
-        #print('c1', self.filter, request)
+    def check(self, request: 'Request') -> bool:
         return utils.rematcheswith(request.link, self.filter) and request.method.upper() in self.methods
 
-    def size(self, request: Request) -> int:
+    def size(self, request: 'Request') -> int:
         a = utils.min_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
         b = utils.Bmin_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
         if not self.check(request):

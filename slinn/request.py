@@ -1,4 +1,4 @@
-from . import File, WebSocketConnection, FTDispatcher, utils
+from . import WebSocketConnection, FTDispatcher, utils
 import urllib.parse
 import socket
 

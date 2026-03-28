@@ -1,6 +1,5 @@
 from . import Request, RequestBody, AsyncWebSocketConnection, utils
 import urllib.parse
-import asyncio
 import socket
 
 
