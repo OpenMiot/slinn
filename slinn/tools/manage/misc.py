@@ -137,10 +137,12 @@ def app_config(app):
 
 
 class MigrationMeta:
-    def __init__(self, basename: str, cls: object, display: str):
+    def __init__(self, basename: str, cls: object, package_key: str, is_zip: bool):
         self.basename = basename
         self.cls = cls
-        self.display = display
+        self.package_key = package_key
+        self.is_zip = is_zip
+        self.display = f'{basename}@{package_key}'
         self.applied = False
 
     def set_applied(self):
@@ -195,7 +197,7 @@ def load_migrations(package_path: str, package_key: str, is_zip: bool) -> Genera
             if (inspect.isclass(obj) and
                     issubclass(obj, Migration) and
                     not inspect.isabstract(obj)):
-                yield MigrationMeta(basename, obj, f'{basename}@{package_key}')
+                yield MigrationMeta(basename, obj, package_key, is_zip)
 
     sys.path.insert(0, package_path)
     if is_zip:

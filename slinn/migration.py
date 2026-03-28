@@ -2,9 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class Migration(ABC):
-    @abstractmethod
-    def __init__(self): ...
-
     @property
     def dependencies(self):
         return ()
