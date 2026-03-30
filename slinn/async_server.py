@@ -97,8 +97,10 @@ class AsyncServer(Server):
                     data = bytearray()
                     while len(data) < self.max_header_size and b'\r\n\r\n' not in data:
                         try:
-                            b = await connection.recv(self.max_bytes_per_receive)
+                            b = await asyncio.wait_for(connection.recv(self.max_bytes_per_receive), timeout=timeout)
                             data += b
+                            if not b:
+                                break
                         except KeyboardInterrupt:
                             self.exit()
                         except (TimeoutError, socket.timeout, asyncio.exceptions.TimeoutError):
@@ -106,8 +108,9 @@ class AsyncServer(Server):
                             break
                     data = data.split(b'\r\n\r\n')
                     header = data[0].decode()
-                    if header == '':
-                        continue
+                    if not header:
+                        connection.close()
+                        break
                     request = AsyncRequest(self.loop, header, client_address, connection, self, htrf=self.htrf)
                     self.logger.info(repr(request))
                     request.connection.paste(b'\r\n\r\n'.join(data[1:]))
@@ -136,13 +139,19 @@ class AsyncServer(Server):
                             max_requests = request.keep_alive.get('max', max_requests)
                             continue
                 else:
+                    _cont = False
                     for dispatcher in self.dispatchers:
                         if dispatcher.check(request.host):
                             for handle in dispatcher.handles:
                                 if await self.answer_request(connection, handle, request, data, header, max_requests):
                                     connection._timeout = request.keep_alive.get('timeout', connection._timeout)
                                     max_requests = request.keep_alive.get('max', max_requests)
-                                    continue
+                                    _cont = True
+                                    break
+                        if _cont:
+                            break
+                    if _cont:
+                        continue
                 try:
                     await self.answer_request(connection, self.hcdp[404], request, data, header, max_requests)
                 except exceptions.HandlerNotFound:
