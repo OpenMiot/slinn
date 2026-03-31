@@ -6,8 +6,8 @@
 ![GitHub top language](https://img.shields.io/github/languages/top/OpenMiot/slinn)
 
 ![GitHub Release](https://img.shields.io/github/v/release/OpenMiot/slinn)
-![GitHub Repo stars](https://img.shields.io/github/stars/OpenMiot/slinn)
 ![GitHub repo size](https://img.shields.io/github/repo-size/OpenMiot/slinn)
+![GitHub Repo stars](https://img.shields.io/github/stars/OpenMiot/slinn)
 
 
 ### Simple example
