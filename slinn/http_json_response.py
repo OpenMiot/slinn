@@ -1,4 +1,5 @@
 from .http_response import HttpResponse
+from typing import Any
 import json
 
 
@@ -6,7 +7,7 @@ class HttpJSONResponse(HttpResponse):
     """
     HttpResponse-based class, that uses keyword arguments to response JSON object
     """
-    def __init__(self, **payload: dict):
+    def __init__(self, **payload: Any):
         self.data = payload['__data'] if '__data' in payload.keys() else None
         self.status = payload['__status'] if '__status' in payload.keys() else '200 OK'
         self.content_type = payload['__content_type'] if '__content_type' in payload.keys() else 'text/plain; charset=utf-8'

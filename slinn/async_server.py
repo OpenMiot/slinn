@@ -70,7 +70,7 @@ class AsyncServer(Server):
                 try:
                     connection, client_address = await self.loop.sock_accept(self.server_socket)
                     self.loop.create_task(self.handle_request(connection, client_address))
-                except KeyboardInterrupt as e:
+                except KeyboardInterrupt:
                     self.exit()
                 except (BlockingIOError, socket.timeout):
                     await asyncio.sleep(0.005)

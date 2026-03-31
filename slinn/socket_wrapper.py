@@ -37,7 +37,6 @@ class SocketWrapper:
         return self._sock.fileno()
 
     def close(self):
-        #print('closed')
         return self._sock.close()
 
     def closed(self):
