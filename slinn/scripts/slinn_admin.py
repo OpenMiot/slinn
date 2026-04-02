@@ -75,11 +75,11 @@ def create_command(args):
                    f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
     os.makedirs(packages_dir, exist_ok=True)
     _install_modules(
-        ('slinn', 'wheel', 'setuptools'),
+        ('slinn', 'dexir', 'wheel', 'setuptools'),
         packages_dir
     )
     _install_scripts(
-        ('slinn', 'spm'),
+        ('slinn-admin', 'slinn', 'spm'),
         binaries_dir
     )
     print(f'{GREEN}Project has created{RESET}')
