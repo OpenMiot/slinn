@@ -16,7 +16,7 @@ root_command = Command()
 pp = Preprocessor()
 
 
-@root_command.subcommand('startproject', ('path', ))
+@root_command.subcommand('create-project', ('path', ))
 def create_command(args):
     def _install_scripts(scripts, path):
         def _install_script(name):
@@ -94,7 +94,7 @@ def create_command(args):
         print(f'{BLUE}Template firstrun not found{RESET}')
 
 
-@root_command.subcommand('updateproject', ('path', ))
+@root_command.subcommand('update-project', ('path', ))
 def update_command(args):
     apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
     if not os.path.isdir(apppath):

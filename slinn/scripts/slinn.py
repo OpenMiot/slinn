@@ -7,6 +7,7 @@ root_command = Command()
 
 
 @root_command.command_not_exists()
+@root_command.command_not_specified()
 def default_command():
     try:
         subprocess.run([sys.executable, 'manage.py'] + sys.argv[1:])

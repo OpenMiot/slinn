@@ -1,3 +1,6 @@
+from .exceptions import SocketClosed
+
+
 class SocketWrapper:
     def __init__(self, sock, timeout=5):
         self._sock = sock
@@ -18,6 +21,8 @@ class SocketWrapper:
         return self._sock.recv(n_bytes)
 
     def send(self, data):
+        if self.closed():
+            raise SocketClosed('socket closed')
         return self._sock.send(data)
 
     def paste(self, data):

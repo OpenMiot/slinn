@@ -1,4 +1,5 @@
 from . import SocketWrapper
+from .exceptions import SocketClosed
 import asyncio
 
 
@@ -52,6 +53,8 @@ class AsyncSocketWrapper(SocketWrapper):
             return data
 
     async def send(self, data):
+        if self.closed():
+            raise SocketClosed('socket closed')
         await self.do_handshake()
         self._transport.write(data)
 

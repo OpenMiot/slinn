@@ -5,7 +5,6 @@ from .tools.debugger import ExceptionResponse
 import asyncio
 import socket
 import ssl
-import os
 import logging
 import traceback
 import warnings
@@ -120,12 +119,6 @@ class AsyncServer(Server):
                 except UnicodeDecodeError:
                     self.logger.info('Got UnicodeDecodeError, probably invalid header. Ignore')
                     continue
-                except ConnectionResetError:
-                    self.logger.info('Connection reset by client')
-                    continue
-                except OSError:
-                    self.logger.info('Connection closed')
-                    continue
                 if self.smart_navigation:
                     handles = []
                     for dispatcher in self.dispatchers:
@@ -162,6 +155,9 @@ class AsyncServer(Server):
                 continue
             except KeyboardInterrupt:
                 self.exit()
+            except (OSError, ConnectionResetError, exceptions.SocketClosed):
+                self.logger.info('Connection closed')
+                continue
             except Exception as exception:
                 self.logger.warning(f'During handling request, an {exception} has occurred')
                 self.logger.warning(traceback.format_exc())
