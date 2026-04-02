@@ -38,11 +38,9 @@ class ProjectAPI:
     def update_config(updates: dict | None = None) -> None:
         updates = updates or {}
         project_json = ProjectAPI.get_config()
-        if 'apps' not in project_json.keys():
-            return
         if 'apps' in updates:
             del updates['apps']
-        project_json['apps'] = [app for app in project_json['apps'] if os.path.isdir(app)]
+        project_json['apps'] = [app for app in project_json.get('apps', []) if os.path.isdir(app)]
         project_json.update(updates)
         with open('project.json', 'w') as project:
             json.dump(project_json, project, indent=4)

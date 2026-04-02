@@ -7,7 +7,7 @@ def readme():
 
 
 setup(name='slinn',
-      version='2.3.2',
+      version='2.3.3',
       description='An HTTP server framework',
       packages=find_packages(),
       include_package_data=True,
@@ -20,8 +20,9 @@ setup(name='slinn',
       zip_safe=False,
       entry_points={
             'console_scripts': [
-                  'slinn = slinn.__main__:main',
-                  'spm = slinn.spm:main'
+                  'slinn-admin = slinn.scripts.slinn_admin:main',
+                  'slinn = slinn.scripts.slinn:main',
+                  'spm = slinn.scripts.spm:main'
             ],
       }
 )

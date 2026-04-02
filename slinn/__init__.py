@@ -52,7 +52,7 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
-__PD, __PI = datetime(2026, 4, 1), 2
+__PD, __PI = datetime(2026, 4, 2), 1
 
 VERSION = {
     'name': 'Slinn',

@@ -1,14 +1,13 @@
-# Slinn
 
-**Slinn is an HTTP server framework**
-
-![License](https://img.shields.io/github/license/OpenMiot/slinn)
-![GitHub top language](https://img.shields.io/github/languages/top/OpenMiot/slinn)
-
-![GitHub Release](https://img.shields.io/github/v/release/OpenMiot/slinn)
-![GitHub repo size](https://img.shields.io/github/repo-size/OpenMiot/slinn)
-![GitHub Repo stars](https://img.shields.io/github/stars/OpenMiot/slinn)
-
+<div align="center">
+    <h1>Slinn</h1>
+    <b>Slinn is an HTTP server framework</b><br/>
+    <img src="https://img.shields.io/github/license/OpenMiot/slinn" alt="License"/>
+    <img src="https://img.shields.io/github/languages/top/OpenMiot/slinn" alt="GitHub top language"/><br/>
+    <img src="https://img.shields.io/github/v/release/OpenMiot/slinn" alt="GitHub Release"/>
+    <img src="https://img.shields.io/github/repo-size/OpenMiot/slinn" alt="GitHub repo size"/>
+    <img src="https://img.shields.io/github/stars/OpenMiot/slinn" alt="GitHub Repo stars"/>
+</div>
 
 ### Simple example
 ```python
@@ -47,7 +46,7 @@ Insert example into localhost/app.py file
 > [!TIP]
 > Instead of use example, create app from template `py manage.py template example` on Windows and `venv/bin/python manage.py template example` on Unix-like OSes
 
-Excepted output
+Expected output
 ```
 helloworld $ venv/bin/python manage.py run
 Loading config...

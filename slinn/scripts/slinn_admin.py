@@ -1,10 +1,10 @@
 from slinn.preprocessor import Preprocessor
 from slinn import slinn_root
-from .tools.manage.command import Command
-from .tools.manage.colorcodes import *
+from slinn.tools.manage.command import Command
+from slinn.tools.manage.colorcodes import *
+from slinn.tools.manage.help_generator import help_generator
 import venv
 import sys
-import subprocess
 import os
 import slinn
 import shutil
@@ -16,8 +16,38 @@ root_command = Command()
 pp = Preprocessor()
 
 
-@root_command.subcommand('create', ('path', ))
+@root_command.subcommand('startproject', ('path', ))
 def create_command(args):
+    def _install_scripts(scripts, path):
+        def _install_script(name):
+            if platform.system() == 'Windows':
+                scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
+                if os.path.isfile(scripts_dir + f'/{name}.exe'):
+                    shutil.copyfile(
+                        scripts_dir + f'/{name}.exe',
+                        path + f'/{name}.exe'
+                    )
+            else:
+                scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
+                if os.path.isfile(scripts_dir + f'/{name}'):
+                    shutil.copyfile(
+                        scripts_dir + f'/{name}',
+                        path + f'/{name}'
+                    )
+        for script in scripts:
+            _install_script(script)
+    def _install_modules(modules, path):
+        def _install_module(name):
+            try:
+                shutil.copytree(
+                    os.path.abspath(__import__(name).__file__).replace('__init__.py', ''),
+                    packages_dir + f'/{name}',
+                    dirs_exist_ok=True
+                )
+            except (FileNotFoundError, ModuleNotFoundError):
+                print(f'{BLUE}{name} was not installed{RESET}')
+        for module in modules:
+            _install_module(module)
     apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
     if not os.path.isdir(apppath):
         os.mkdir(apppath)
@@ -43,44 +73,15 @@ def create_command(args):
     packages_dir = f'{apppath}/venv/Lib/site-packages' \
                    if platform.system() == 'Windows' else \
                    f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
-    try:
-        os.makedirs(packages_dir, exist_ok=True)
-    except FileExistsError:
-        pass
-    try:
-        shutil.copytree(
-            slinn.root,
-            packages_dir + '/slinn',
-            dirs_exist_ok=True
-        )
-        if platform.system() == 'Windows':
-            scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
-            shutil.copyfile(
-                scripts_dir + '/slinn.exe',
-                binaries_dir + '/slinn.exe'
-            )
-            shutil.copyfile(
-                scripts_dir + '/spm.exe',
-                binaries_dir + '/spm.exe'
-            )
-    except Exception as e:
-        return print(f'{RED}Cannot install slinn to the new virtual environment{RESET}')
-    try:
-        shutil.copytree(
-            os.path.abspath(__import__('wheel').__file__).replace('__init__.py', ''),
-            packages_dir + '/wheel',
-            dirs_exist_ok=True
-        )
-    except (FileNotFoundError, ModuleNotFoundError):
-        print(f'{BLUE}wheel was not installed{RESET}')
-    try:
-        shutil.copytree(
-            os.path.abspath(__import__('setuptools').__file__).replace('__init__.py', ''),
-            packages_dir + '/setuptools',
-            dirs_exist_ok=True
-        )
-    except (FileNotFoundError, ModuleNotFoundError):
-        print(f'{BLUE}setuptools was not installed{RESET}')
+    os.makedirs(packages_dir, exist_ok=True)
+    _install_modules(
+        ('slinn', 'wheel', 'setuptools'),
+        packages_dir
+    )
+    _install_scripts(
+        ('slinn', 'spm'),
+        binaries_dir
+    )
     print(f'{GREEN}Project has created{RESET}')
     try:
         shutil.copytree(f'{slinn.root}/templates/firstrun/', f'{apppath}/firstrun',
@@ -93,7 +94,7 @@ def create_command(args):
         print(f'{BLUE}Template firstrun not found{RESET}')
 
 
-@root_command.subcommand('update', ('path', ))
+@root_command.subcommand('updateproject', ('path', ))
 def update_command(args):
     apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
     if not os.path.isdir(apppath):
@@ -114,13 +115,12 @@ def update_command(args):
 
 @root_command.subcommand('help')
 def help_command():
-    with slinn_root('/tools/manage/module_main_help.template', 'r') as f:
-        print(pp.preprocess(f.read(), {
-            'cmd': f'py -m slinn',
-            'gray': GRAY,
-            'reset': RESET,
-            'bold': BOLD
-        }))
+    print(help_generator('Slinn', sys.argv[0], {
+        'create-project {project`s name}': 'create project',
+        'update-project {project`s name}': 'update project',
+        'help': 'display this message',
+        'version': 'display slinn`s version',
+    }))
 
 
 @root_command.subcommand('version')
@@ -130,10 +130,7 @@ def version_command():
 
 @root_command.command_not_exists()
 def default_command():
-    try:
-        subprocess.run([sys.executable, 'manage.py'] + sys.argv[1:])
-    except KeyboardInterrupt:
-        ...
+    print(f'{RED}Command not exists{RESET}')
 
 
 @root_command.command_not_specified()

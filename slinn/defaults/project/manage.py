@@ -5,6 +5,7 @@ from slinn.tools.manage.misc import (
 )
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.defaults import APP_CONFIG
+from slinn.tools.manage.help_generator import help_generator
 from slinn.preprocessor import Preprocessor
 from slinn import slinn_root, ProjectAPI
 import sys
@@ -79,7 +80,7 @@ def run_command():
         }))
 
 
-@root_command.subcommand('create', ('name', 'host'))
+@root_command.subcommand('create-app', ('name', 'host'))
 def create_command(args):
     if 'name' not in args.keys():
         return print(f'{RED}The app`s name is not specified{RESET}')
@@ -118,11 +119,11 @@ def create_command(args):
     fj['apps'].insert(0, ensure_appname)
     with open('project.json', 'w') as f:
         json.dump(fj, f, indent=4)
-    update()
+    ProjectAPI.update_config()
     return print(f'{GREEN}App successfully created{RESET}')
 
 
-@root_command.subcommand('delete', ('name',))
+@root_command.subcommand('delete-app', ('name',))
 def delete_command(args):
     apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
     if 'name' not in args.keys():
@@ -136,31 +137,21 @@ def delete_command(args):
     shutil.rmtree(f'{apppath}/templates_data/{ensure_appname}', ignore_errors=True)
     if os.path.isdir(f'{apppath}/templates_data') and len(os.listdir(f'{apppath}/templates_data')) == 0:
         shutil.rmtree(f'{apppath}/templates_data')
-    update()
+    ProjectAPI.update_config()
     return print(f'{GREEN}App successfully deleted{RESET}')
-
-
-@root_command.subcommand('update')
-def update():
-    with open('project.json', 'r') as project:
-        project_json = json.load(project)
-    if 'apps' not in project_json.keys():
-        return print(f'Updated project.json')
-    project_json['apps'] = [app for app in project_json['apps'] if os.path.isdir(app)]
-    with open('project.json', 'w') as project:
-        json.dump(project_json, project, indent=4)
-    return print(f'Updated project.json')
 
 
 @root_command.subcommand('help')
 def help_command():
-    with slinn_root('/tools/manage/manager_help.template', 'r') as f:
-        print(pp.preprocess(f.read(), {
-            'cmd': f'py {sys.argv[0]}',
-            'gray': GRAY,
-            'reset': RESET,
-            'bold': BOLD
-        }))
+    print(help_generator('Slinn Manager', sys.argv[0], {
+        'run': 'start server',
+        'create-app {app`s name} host=(host1) host=(host2)...': 'create a new app',
+        'delete-app {app`s name} (project`s path)': 'delete an app',
+        'template {template`s name} (projects`s path)': 'install a template',
+        'migrate-all': 'apply migrations',
+        'help': 'display this message',
+        'version': 'display slinn`s version'
+    }))
 
 
 @root_command.subcommand('version')
@@ -191,7 +182,7 @@ def template_command(args):
                             f'{apppath}/templates_data/{args["name"]}')
         except (FileExistsError, FileNotFoundError):
             pass
-        update()
+        ProjectAPI.update_config()
         print(f'{GREEN}Template {args["name"]} successfully installed{RESET}')
     except FileExistsError:
         print(f'{BLUE}Template {args["name"]} has already installed{RESET}')
@@ -227,24 +218,7 @@ def _template_command(args):
     print(f'{GREEN}Template {args["template"]} successfully installed as {app_name}{RESET}')
 
 
-@root_command.subcommand('migrate_app', ('name',))
-def migrate_app_command(args):
-    if 'name' not in args.keys():
-        return print(f'{RED}The app`s name is not specified{RESET}')
-    ensure_appname = replace_all(args['name'], '-&$#!@%^().,', '_')
-    if not os.path.isdir(ensure_appname):
-        return print(f'{BLUE}The app named {args["name"]} does not exist{RESET}')
-    with open(f'{ensure_appname}/__init__.py', 'w') as fw:
-        with slinn_root('/defaults/app/__init__.py.template', 'r') as fr:
-            fw.write(pp.preprocess(fr.read(), {
-                'appname': ensure_appname
-            }))
-    with open(f'{ensure_appname}/config.json', 'w') as f:
-        json.dump(APP_CONFIG, f, indent=4)
-    return print(f'{GREEN}App successfully migrated{RESET}')
-
-
-@root_command.subcommand('makemigrations')
+@root_command.subcommand('migrate-all')
 def apply_all_migrations(args):
     migrations = {}
 

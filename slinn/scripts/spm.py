@@ -1,6 +1,9 @@
 from slinn import slinn_root, Storage
-from .tools.manage.command import Command
-from .tools.manage.colorcodes import *
+from slinn.tools.manage.command import Command
+from slinn.tools.manage.colorcodes import *
+from slinn.tools.manage.help_generator import help_generator
+from datetime import datetime
+from string import ascii_uppercase
 import sys
 import os
 import json
@@ -10,9 +13,21 @@ import urllib.parse
 import email
 import zipfile
 import shutil
+import platform
 
 
-version = 'Slinn Package Manager 26.3e'
+__PD, __PI = datetime(2026, 4, 2), 1
+
+VERSION = {
+    'name': 'Slinn Package Manager',
+    'version': (
+        __PD.strftime('%y.%#m-') if platform.system() == "Windows" else __PD.strftime('%y.%-m-')
+        ) + ascii_uppercase[__PI - 1],
+    'meta': {}
+}
+
+version = VERSION['name'] + ' ' + VERSION['version']
+
 root_command = Command()
 
 spm_config = {
@@ -42,7 +57,7 @@ with slinn_root('spm/spm.json', 'w') as f:
 @root_command.command_not_specified()
 @root_command.subcommand('help')
 def no_args_handler():
-    commands_desc = {
+    print(help_generator(version, sys.argv[0], {
         'update': 'update packages metadata from repositories',
         'install': 'install or upgrade package',
         'uninstall': 'uninstall package',
@@ -53,13 +68,7 @@ def no_args_handler():
         'list-packages': 'display all packages in repositories',
         'help': 'display this message',
         'version': 'display version'
-    }
-    print((f'{BOLD}{version}{RESET}\n\n'
-          f'{CYAN}Usage{RESET}:\n'
-          f'  {sys.argv[0]} <command>\n\n'
-          f'{CYAN}Commands{RESET}:\n') + '\n'.join(
-        [f'  {BOLD}{name:20}{RESET}{desc.capitalize()}.' for name, desc in commands_desc.items()]
-    ))
+    }))
 
 
 @root_command.subcommand('update')
