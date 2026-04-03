@@ -17,6 +17,6 @@
     "smart_navigation": true,
 
     "timeout": 0.5,
-    "max_bytes_per_receive": 4096,
-    "max_header_size": 4294967296
+    "max_bytes_per_receive": 65535,
+    "max_header_size": 8192
 }

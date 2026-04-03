@@ -23,17 +23,23 @@ def create_command(args):
             if platform.system() == 'Windows':
                 scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
                 if os.path.isfile(scripts_dir + f'/{name}.exe'):
-                    shutil.copyfile(
-                        scripts_dir + f'/{name}.exe',
-                        path + f'/{name}.exe'
-                    )
+                    try:
+                        shutil.copyfile(
+                            scripts_dir + f'/{name}.exe',
+                            path + f'/{name}.exe'
+                        )
+                    except shutil.SameFileError:
+                        pass
             else:
                 scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
                 if os.path.isfile(scripts_dir + f'/{name}'):
-                    shutil.copyfile(
-                        scripts_dir + f'/{name}',
-                        path + f'/{name}'
-                    )
+                    try:
+                        shutil.copyfile(
+                            scripts_dir + f'/{name}',
+                            path + f'/{name}'
+                        )
+                    except shutil.SameFileError:
+                        pass
         for script in scripts:
             _install_script(script)
     def _install_modules(modules, path):
@@ -57,11 +63,15 @@ def create_command(args):
     shutil.copyfile(slinn.root + '/defaults/project/htrf.py', f'{apppath}/htrf.py')
     shutil.copyfile(slinn.root + '/defaults/project/hcdp.py', f'{apppath}/hcdp.py')
     shutil.copyfile(slinn.root + '/defaults/project/project.json', f'{apppath}/project.json')
+    slinn_script_path = (
+        '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
+        + '/slinn'
+        + ('.exe' if platform.system() == 'Windows' else '')
+    )
     with open(f'{apppath}/start.bat', 'w') as f:
-        f.write(f'{sys.argv[0]} run\r\n')
+        f.write(f'{slinn_script_path} run\r\n')
     with open(f'{apppath}/start.sh', 'w') as f:
-        executable = sys.argv[0].replace('\\', '/')
-        f.write(f'{executable} run\n')
+        f.write(f'{slinn_script_path} run\n')
     os.chmod(
         f'{apppath}/start.sh',
         stat.S_IMODE(os.lstat(f'{apppath}/start.sh').st_mode) | stat.S_IEXEC

@@ -1,19 +1,19 @@
-from slinn import Dispatcher, LinkFilter, AnyFilter, Request, JSONAPIResponse, Redirect, Response
+from slinn import ApiDispatcher, AnyFilter, HttpResponse, HttpRedirect, HttpJSONResponse
 
 
-dp = Dispatcher()
-
-@dp(LinkFilter('api'))
-def api(request: Request) -> None:
-    request.respond(JSONAPIResponse, status='ok')
+dp = ApiDispatcher()
 
 
-@dp(LinkFilter(''))
-@dp(LinkFilter('index'))
-def index(request: Request) -> None:
-    request.respond(Redirect, '/helloworld')
+@dp.get('api')
+async def api(request):
+    return HttpJSONResponse(status='ok')
+
+@dp.get()
+@dp.get('index')
+async def index(request):
+    return HttpRedirect('/helloworld')
 
 
 @dp(AnyFilter)
-def helloworld(request: Request) -> None:
-    request.respond(Response, 'Hello, world!')
+async def helloworld(request):
+     return HttpResponse('Hello world!')

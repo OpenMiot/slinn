@@ -1,13 +1,13 @@
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.misc import (
-    replace_all, add_quotes_to_list, config, packages, get_dispatchers, app_config, load_imports, app_reload,
+    replace_all, add_quotes_to_list, packages, get_dispatchers, load_imports, app_reload,
     load_migrations, plugins_sorted, load_template
 )
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.defaults import APP_CONFIG
 from slinn.tools.manage.help_generator import help_generator
 from slinn.preprocessor import Preprocessor
-from slinn import slinn_root, ProjectAPI
+from slinn import slinn_root, ProjectAPI, SlinnAppAPI
 import sys
 import os
 import shutil
@@ -17,7 +17,7 @@ import asyncio
 
 root_command = Command()
 pp = Preprocessor()
-cfg = config()
+cfg = ProjectAPI.get_config()
 pkgs = packages()
 pkgs['plugins'] = plugins_sorted(pkgs['plugins'], pkgs)
 
@@ -38,7 +38,7 @@ plugins_dir = {
 def run_command():
     apps_info = []
     for app in cfg['apps']:
-        if not app_config(app)['debug'] or cfg['debug']:
+        if not SlinnAppAPI(app).config['debug'] or cfg['debug']:
             apps_info.append(app)
         else:
             apps_info.append('[' + STRIKE + app + NONSTRIKE + ']')
@@ -72,9 +72,9 @@ def run_command():
         return exec(pp.preprocess(f.read(), {
             'imports': ';'.join(load_imports(cfg['apps'], plugins_zip, plugins_dir, cfg['debug'])),
             'reloads': ''.join(
-                [app_reload(app) for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
+                [app_reload(app) for app in cfg['apps'] if not SlinnAppAPI(app).config['debug'] or cfg['debug']]),
             'server_reload': ','.join(
-                [f'{app}.dp' for app in cfg['apps'] if not app_config(app)['debug'] or cfg['debug']]),
+                [f'{app}.dp' for app in cfg['apps'] if not SlinnAppAPI(app).config['debug'] or cfg['debug']]),
             'dps': dps,
             **cfg
         }))
@@ -219,7 +219,7 @@ def _template_command(args):
 
 
 @root_command.subcommand('migrate-all')
-def apply_all_migrations(args):
+def apply_all_migrations():
     migrations = {}
 
     async def check_and_apply_migration(migration_meta):
@@ -285,6 +285,6 @@ def command_not_specified():
 
 if __name__ == '__main__':
     try:
-        root_command(sys.argv[1:])()
+        root_command(' '.join(sys.argv[1:]))()
     except KeyboardInterrupt:
         print(f'\n\n{BLUE}{BOLD}KeyboardInterrupt{RESET}')

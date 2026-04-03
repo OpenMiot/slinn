@@ -1,3 +1,0 @@
-# slinn.File
-
-Start typing here...

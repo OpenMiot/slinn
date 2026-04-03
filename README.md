@@ -11,24 +11,31 @@
 
 ### Simple example
 ```python
-from slinn import ApiDispatcher, AnyFilter, HttpResponse, HttpRedirect, HttpJSONResponse
+from slinn import (
+    ApiDispatcher, AnyFilter, AsyncRequest, HttpResponse,
+    HttpRedirect, HttpJSONResponse
+)
 
 
 dp = ApiDispatcher()
 
 
-@dp.get('api')
-async def api(request):
-    return HttpJSONResponse(status='ok')
+@dp.get('api/<str method>')
+async def api(request: AsyncRequest, method: str) -> HttpResponse:
+    return HttpJSONResponse(
+        status='ok',
+        method=method,
+        ip=request.ip
+    )
 
 @dp.get()
 @dp.get('index')
-async def index(request):
+async def index() -> HttpResponse:
     return HttpRedirect('/helloworld')
 
 
 @dp(AnyFilter)
-async def helloworld(request):
+async def helloworld() -> HttpResponse:
      return HttpResponse('Hello world!')
 
 ```
@@ -36,19 +43,19 @@ async def helloworld(request):
 ### Begin project
 #### Standart
 ```bash
-python3 -m slinn create helloworld
-cd helloworld
-venv/bin/python manage.py create localhost host=localhost host=127.0.0.1
-venv/bin/python manage.py run 
+slinn-admin create-project www
+cd www
+venv/bin/activate
+slinn create-app localhost host=localhost host=127.0.0.1
 ```
 
-Insert example into localhost/app.py file
+Insert example into localhost/app.py file, then run `start.bat` or `start.sh` script
+
 > [!TIP]
-> Instead of use example, create app from template `py manage.py template example` on Windows and `venv/bin/python manage.py template example` on Unix-like OSes
+> Instead of use example, create app from template `slinn template example`
 
 Expected output
 ```
-helloworld $ venv/bin/python manage.py run
 Loading config...
 Apps: firstrun
 Debug mode enabled

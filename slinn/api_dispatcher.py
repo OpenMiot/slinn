@@ -11,7 +11,7 @@ class ApiDispatcher(Dispatcher):
 
         self.get = functools.partial(self._register_handler_decorator, methods=('GET', ))
         self.post = functools.partial(self._register_handler_decorator, methods=('POST',))
-        self.patch = functools.partial(self._register_handler_decorator, methods=('PATH',))
+        self.patch = functools.partial(self._register_handler_decorator, methods=('PATCH',))
         self.put = functools.partial(self._register_handler_decorator, methods=('PUT',))
         self.delete = functools.partial(self._register_handler_decorator, methods=('DELETE',))
         self.options = functools.partial(self._register_handler_decorator, methods=('OPTIONS',))

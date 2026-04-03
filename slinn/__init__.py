@@ -52,12 +52,12 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
-__PD, __PI = datetime(2026, 4, 2), 3
+__PD, __PI = datetime(2026, 4, 4), 1
 
 VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
-    'version': '2.3.4',
+    'version': '2.3.5',
     'version_id': __PD.strftime('%d%m%y') + ascii_uppercase[__PI - 1],
     'meta': {
         'dies_at': __PD + timedelta(days=120),
@@ -72,6 +72,7 @@ slinn_root = Storage(root)
 
 
 from .project_api import ProjectAPI
+from .slinn_app_api import SlinnAppAPI
 
 
 Response = utils.rename_class(HttpResponse, 'Response')
