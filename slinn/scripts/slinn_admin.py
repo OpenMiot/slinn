@@ -27,7 +27,7 @@ def create_command(args: dict):
             else:
                 script_path = os.path.join(path, f'{script[0]}.sh')
                 with open(script_path, 'w') as f:
-                    f.write(f'{os.path.abspath(os.path.join(path, "python"))} -m {script[1]} $*\n')
+                    f.write(f'#!/usr/bin/sh\n{os.path.abspath(os.path.join(path, "python"))} -m {script[1]} $*\n')
                 os.chmod(script_path, os.stat(script_path).st_mode | (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
         for script in scripts.items():
             _install_script(script)
@@ -52,19 +52,6 @@ def create_command(args: dict):
     shutil.copyfile(slinn.root + '/defaults/project/htrf.py', f'{apppath}/htrf.py')
     shutil.copyfile(slinn.root + '/defaults/project/hcdp.py', f'{apppath}/hcdp.py')
     shutil.copyfile(slinn.root + '/defaults/project/project.json', f'{apppath}/project.json')
-    slinn_script_path = (
-        '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
-        + '/slinn'
-        + ('.bat' if platform.system() == 'Windows' else '.sh')
-    )
-    with open(f'{apppath}/start.bat', 'w') as f:
-        f.write(f'{slinn_script_path} run\r\n')
-    with open(f'{apppath}/start.sh', 'w') as f:
-        f.write(f'{slinn_script_path} run\n')
-    os.chmod(
-        f'{apppath}/start.sh',
-        stat.S_IMODE(os.lstat(f'{apppath}/start.sh').st_mode) | stat.S_IEXEC
-    )
     venv.create(f'{apppath}/venv', with_pip=True)
     binaries_dir = f'{apppath}/venv/Scripts' \
                    if platform.system() == 'Windows' else \
@@ -84,6 +71,18 @@ def create_command(args: dict):
             'spm': 'slinn.scripts.spm'
         },
         binaries_dir
+    )
+    slinn_script_path = os.path.join(
+        binaries_dir,
+        '/slinn' + ('.bat' if platform.system() == 'Windows' else '')
+    )
+    with open(f'{apppath}/start.bat', 'w') as f:
+        f.write(f'{slinn_script_path} run\r\n')
+    with open(f'{apppath}/start.sh', 'w') as f:
+        f.write(f'{slinn_script_path} run\n')
+    os.chmod(
+        f'{apppath}/start.sh',
+        stat.S_IMODE(os.lstat(f'{apppath}/start.sh').st_mode) | stat.S_IEXEC
     )
     print(f'{GREEN}Project has created{RESET}')
     try:
