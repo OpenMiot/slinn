@@ -52,12 +52,12 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
-__PD, __PI = datetime(2026, 4, 8), 2
+__PD, __PI = datetime(2026, 4, 8), 3
 
 VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
-    'version': '2.3.7',
+    'version': '2.3.8',
     'version_id': __PD.strftime('%d%m%y') + ascii_uppercase[__PI - 1],
     'meta': {
         'dies_at': __PD + timedelta(days=120),

@@ -25,7 +25,7 @@ def create_command(args: dict):
                 with open(script_path, 'w') as f:
                     f.write(f'@echo off\r\n{os.path.abspath(os.path.join(path, "python.exe"))} -m {script[1]} %* & call call\r\n')
             else:
-                script_path = os.path.join(path, f'{script[0]}.sh')
+                script_path = os.path.join(path, f'{script[0]}')
                 with open(script_path, 'w') as f:
                     f.write(f'#!/usr/bin/sh\n{os.path.abspath(os.path.join(path, "python"))} -m {script[1]} $*\n')
                 os.chmod(script_path, os.stat(script_path).st_mode | (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
