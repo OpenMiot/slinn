@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any, Callable
 from . import Request, Address, HCDispatcher, FTDispatcher, SocketWrapper, SSLSocketWrapper, utils, exceptions
 from .tools.debugger import ExceptionResponse
@@ -15,11 +16,22 @@ class Server:
     Main class to start server
     """
 
-    def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
-                 ssl_key: str = None, timeout: float = 5, max_bytes_per_receive: int = 4096,
-                 max_header_size: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
-                 hcdp: HCDispatcher = None, htrf: FTDispatcher = None,
-                 max_requests: int = 200, debug=True) -> None:  # type: ignore
+    def __init__(
+        self,
+        *dispatchers: Any,
+        smart_navigation: bool = True,
+        ssl_fullchain: str = None,
+        ssl_key: str = None,
+        timeout: float = 5,
+        max_bytes_per_receive: int = 65535,
+        max_header_size: int = 8192,
+        _func: Callable = None,
+        logger: logging.Logger = None,
+        hcdp: HCDispatcher = None,
+        htrf: FTDispatcher = None,
+        max_requests: int = 200,
+        debug=True
+    ):
         self.dispatchers = dispatchers
         self.smart_navigation = smart_navigation
         self.server_socket = None
@@ -37,7 +49,7 @@ class Server:
         self.htrf = htrf or FTDispatcher()
         self.debug = debug
 
-    def reload(self, *dispatchers: tuple) -> None:
+    def reload(self, *dispatchers: 'Dispatcher') -> None:
         if self.thread is not None:
             self.thread.stop()
             try:
@@ -47,19 +59,19 @@ class Server:
         self.dispatchers = dispatchers
         self.logger.info('Server has reloaded')
 
-    def exit(self):
+    def exit(self) -> None:
         self.logger.critical('Got KeyboardInterrupt, halting the application...')
         if self.server_socket.fileno() != -1:
             self.server_socket.close()
         os._exit(0)
 
-    def address(self, port: int, domain: str = None):
+    def address(self, port: int, domain: str = None) -> str:
         protocol = 'https' if self.ssl else 'http'
         return (f'{protocol.upper()} server is available on {protocol}://' +
                 ('0.0.0.0' if (domain is None or domain == '') else ('[' + domain + ']' if ':' in domain else domain)) +
                 f'{(":" + str(port) if port != 443 else "") if self.ssl else (":" + str(port) if port != 80 else "")}/')
 
-    def listen(self, address: Address):
+    def listen(self, address: Address) -> None:
         self.server_socket = None
         if ':' in address.host:
             self.server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
@@ -96,9 +108,17 @@ class Server:
         except KeyboardInterrupt:
             self.exit()
 
-    def handle_request(self, connection, client_address, wrapped=False, timeout=None, max_requests=None):
+    def handle_request(
+            self,
+            connection: SocketWrapper,
+            client_address: tuple[str, int],
+            wrapped: bool = False,
+            timeout: bool = None,
+            max_requests: bool = None
+    ) -> None:
         connection = SSLSocketWrapper(connection, self.ssl_context) if self.ssl else SocketWrapper(connection)
         max_requests = max_requests or self.max_requests
+        connection.settimeout(timeout or self.timeout)
         while not connection.closed():
             max_requests -= 1
             try:
@@ -193,7 +213,15 @@ class Server:
                 continue
 
 
-    def answer_request(self, client_socket, handle, request, http_data, http_header, max_requests):
+    def answer_request(
+            self,
+            client_socket: SocketWrapper,
+            handle: 'Handle',
+            request: Request,
+            http_data: bytearray,
+            http_header: str,
+            max_requests: int
+    ) -> bool:
         if handle.filter.check(request):
             if not client_socket.closed():
                 response = utils.optional(handle.function,

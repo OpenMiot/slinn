@@ -9,30 +9,24 @@
         <toc-element topic="Приступая-к-работе.md"/>
         <toc-element topic="Создание-проекта.md"/>
         <toc-element topic="Простой-пример.md"/>
+        <toc-element topic="Маршрутизация-запросов.md"/>
+        <toc-element topic="Фильтрация-запросов.md"/>
+        <toc-element topic="Ответы-на-запросы.md"/>
+        <toc-element topic="Промежуточная-обработка.md"/>
     </toc-element>
-    <toc-element topic="Маршрутизация-запросов.md">
-    </toc-element>
-    <toc-element topic="Фильтрация-запросов.md"/>
-    <toc-element topic="Ответы-на-запросы.md"/>
-    <toc-element topic="Промежуточная-обработка.md"/>
-    <toc-element topic="Исключения.md"/>
     <toc-element toc-title="Типы">
-        <toc-element topic="slinn-Server.md"/>
-        <toc-element topic="slinn-Request.md"/>
-        <toc-element topic="slinn-Preprocessor.md"/>
-        <toc-element topic="slinn-IMiddleware.md"/>
-        <toc-element topic="slinn-HttpResponse.md">
-            <toc-element topic="slinn-HttpAPIResponse.md"/>
-            <toc-element topic="slinn-HttpEmptyResponse.md"/>
-            <toc-element topic="slinn-HttpJSONAPIResponse.md"/>
-            <toc-element topic="slinn-HttpJSONResponse.md"/>
-            <toc-element topic="slinn-HttpRedirect.md"/>
-            <toc-element topic="slinn-HttpRender.md"/>
+        <toc-element topic="Server.md"/>
+        <toc-element topic="Request.md"/>
+        <toc-element topic="Preprocessor.md"/>
+        <toc-element topic="IMiddleware.md"/>
+        <toc-element topic="HttpResponse.md">
+            <toc-element topic="HttpRender.md"/>
+            <toc-element topic="HttpJSONResponse.md"/>
+            <toc-element topic="HttpRedirect.md"/>
+            <toc-element topic="HttpEmptyResponse.md"/>
         </toc-element>
-        <toc-element topic="slinn-HCDispatcher.md"/>
-        <toc-element topic="slinn-File.md"/>
-        <toc-element topic="slinn-Dispatcher.md"/>
-        <toc-element topic="slinn-Address.md"/>
+        <toc-element topic="HCDispatcher.md"/>
+        <toc-element topic="Dispatcher.md"/>
+        <toc-element topic="Address.md"/>
     </toc-element>
-    <toc-element topic="Dexir.md"/>
 </instance-profile>

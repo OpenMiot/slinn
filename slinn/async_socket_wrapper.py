@@ -1,6 +1,7 @@
 from . import SocketWrapper
 from .exceptions import SocketClosed
 import asyncio
+import time
 
 
 class AsyncSocketWrapper(SocketWrapper):
@@ -41,16 +42,13 @@ class AsyncSocketWrapper(SocketWrapper):
     async def recv(self, n_bytes):
         await self.do_handshake()
 
-        await asyncio.sleep(0.001)
-        
-        if len(self.buffer) > n_bytes:
-            data = self.buffer[:n_bytes]
-            self.buffer = self.buffer[n_bytes:]
-            return data
-        else:
-            data = self.buffer
-            self.buffer = bytearray()
-            return data
+        _start = time.time()
+        while not self.buffer and time.time() - _start < self._timeout:
+            await asyncio.sleep(0)
+
+        data = self.buffer[:n_bytes] if len(self.buffer) > n_bytes else self.buffer
+        self.buffer = self.buffer[n_bytes:] if len(self.buffer) > n_bytes else bytearray()
+        return data
 
     async def send(self, data):
         if self.closed():

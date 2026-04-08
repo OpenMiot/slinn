@@ -52,16 +52,16 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
-__PD, __PI = datetime(2026, 4, 4), 1
+__PD, __PI = datetime(2026, 4, 8), 1
 
 VERSION = {
     'name': 'Slinn',
     'codename': 'Nukeful',
-    'version': '2.3.5',
+    'version': '2.3.6',
     'version_id': __PD.strftime('%d%m%y') + ascii_uppercase[__PI - 1],
     'meta': {
         'dies_at': __PD + timedelta(days=120),
-        'is_snapshot': True,
+        'is_snapshot': False,
         'may_incompatible': False
     }
 }
@@ -86,6 +86,7 @@ JSONResponse = utils.rename_class(HttpJSONResponse, 'JSONResponse')
 JSONAPIResponse = utils.rename_class(HttpJSONAPIResponse, 'JSONAPIResponse')
 
 Response = utils.make_deprecated(Response, HttpResponse)
+ResponseHeader = utils.make_deprecated(ResponseHeader, HttpResponseHeader)
 Redirect = utils.make_deprecated(Redirect, HttpRedirect)
 EmptyResponse = utils.make_deprecated(EmptyResponse, EmptyHttpResponse)
 Render = utils.make_deprecated(Render, HttpRender)

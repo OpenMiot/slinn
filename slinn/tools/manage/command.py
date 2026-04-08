@@ -34,7 +34,7 @@ class Command:
 
         return wrapper
 
-    def __call__(self, argv: str) -> callable:
+    def __call__(self, argv: list[str]) -> callable:
         if not argv:
             return self.not_specified
         for child in self.children:

@@ -17,37 +17,26 @@ pp = Preprocessor()
 
 
 @root_command.subcommand('create-project', ('path', ))
-def create_command(args):
-    def _install_scripts(scripts, path):
-        def _install_script(name):
+def create_command(args: dict):
+    def _install_scripts(scripts: dict[str, str], path: str):
+        def _install_script(script: tuple[str, str]):
             if platform.system() == 'Windows':
-                scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
-                if os.path.isfile(scripts_dir + f'/{name}.exe'):
-                    try:
-                        shutil.copyfile(
-                            scripts_dir + f'/{name}.exe',
-                            path + f'/{name}.exe'
-                        )
-                    except shutil.SameFileError:
-                        pass
+                script_path = os.path.join(path, f'{script[0]}.bat')
+                with open(script_path, 'w') as f:
+                    f.write(f'@echo off\r\n{os.path.abspath(os.path.join(path, "python.exe"))} -m {script[1]} %* & call call\r\n')
             else:
-                scripts_dir = '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
-                if os.path.isfile(scripts_dir + f'/{name}'):
-                    try:
-                        shutil.copyfile(
-                            scripts_dir + f'/{name}',
-                            path + f'/{name}'
-                        )
-                    except shutil.SameFileError:
-                        pass
-        for script in scripts:
+                script_path = os.path.join(path, f'{script[0]}.sh')
+                with open(script_path, 'w') as f:
+                    f.write(f'{os.path.abspath(os.path.join(path, "python"))} -m {script[1]} $*\n')
+                os.chmod(script_path, os.stat(script_path).st_mode | (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+        for script in scripts.items():
             _install_script(script)
-    def _install_modules(modules, path):
-        def _install_module(name):
+    def _install_modules(modules: tuple[str, ...], path: str):
+        def _install_module(name: str):
             try:
                 shutil.copytree(
                     os.path.abspath(__import__(name).__file__).replace('__init__.py', ''),
-                    packages_dir + f'/{name}',
+                    path + f'/{name}',
                     dirs_exist_ok=True
                 )
             except (FileNotFoundError, ModuleNotFoundError):
@@ -66,7 +55,7 @@ def create_command(args):
     slinn_script_path = (
         '/'.join(sys.argv[0].replace('\\', '/').split('/')[:-1])
         + '/slinn'
-        + ('.exe' if platform.system() == 'Windows' else '')
+        + ('.bat' if platform.system() == 'Windows' else '.sh')
     )
     with open(f'{apppath}/start.bat', 'w') as f:
         f.write(f'{slinn_script_path} run\r\n')
@@ -89,7 +78,11 @@ def create_command(args):
         packages_dir
     )
     _install_scripts(
-        ('slinn-admin', 'slinn', 'spm'),
+        {
+            'slinn-admin': 'slinn.scripts.slinn_admin',
+            'slinn': 'slinn.scripts.slinn',
+            'spm': 'slinn.scripts.spm'
+        },
         binaries_dir
     )
     print(f'{GREEN}Project has created{RESET}')

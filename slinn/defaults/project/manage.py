@@ -285,6 +285,6 @@ def command_not_specified():
 
 if __name__ == '__main__':
     try:
-        root_command(' '.join(sys.argv[1:]))()
+        root_command(sys.argv[1:])()
     except KeyboardInterrupt:
         print(f'\n\n{BLUE}{BOLD}KeyboardInterrupt{RESET}')

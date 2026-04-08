@@ -14,15 +14,20 @@ class PackageType(enum.Enum):
 
 
 class Storage:
-    def __init__(self, root, package: Optional[str] = None, *, zip_file: bool = False):
+    def __init__(
+            self,
+            root: str = '',
+            package: Optional[str] = None,
+            *,
+            zip_file: bool = False):
         if not os.path.exists(root) and not os.path.isdir(root) and not package and not zip_file:
             os.makedirs(root, exist_ok=True)
 
-        self.root = root
+        self.root = root if package else os.path.abspath(root)
         self.ctx = {}
         self.package = package
         self._package_type = None
-        self._package_path = None
+        self._package_path = ''
         self._package_spec = None
         self._package_zip = None
 
@@ -83,7 +88,7 @@ class Storage:
 
     def mkdir(self, path, mode=0o700):
         self._require_writable()
-        os.mkdir(self.get_path(path), mode)
+        os.mkdir(os.path.join(self._package_path, self.get_path(path)), mode)
 
     def makedirs(self, path, mode=0o700, exist_ok=True):
         self._require_writable()
@@ -97,27 +102,31 @@ class Storage:
         self._require_writable()
         shutil.rmtree(self.get_path(path))
 
-    def get_path(self, path: str) -> str:
+    def get_path(self, path: str, add_package_path=True) -> str:
         if self.package is None:
-            return os.path.join(self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').strip(
-                '/')
+            return os.path.join(self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').rstrip('/')
         elif self._package_type == PackageType.FILESYSTEM:
-            return os.path.join(self._package_path, self.root, path.lstrip('/')).replace('\\', '/').replace('//',
-                                                                                                            '/').rstrip(
-                '/.').strip('/')
+            if add_package_path:
+                return os.path.join(self._package_path, self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').rstrip('/')
+            else:
+                return os.path.join(self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').strip('/')
         else:
-            return f"{self.package}/{self.root}/{path.lstrip('/')}".replace('\\', '/').replace('//', '/').rstrip(
-                '/.').strip('/').replace('/./', '/')
+            return f"{self.package}/{self.root}/{path.lstrip('/')}".replace('\\', '/').replace('//', '/').rstrip('/.').strip('/').replace('/./', '/')
 
     def substorage(self, path):
-        return Storage(self.get_path(path), self.package, zip_file=self._package_zip if self._package_zip else False)
+        return Storage(self.get_path(path, add_package_path=False), self.package, zip_file=self._package_zip if self._package_zip else False)
 
 
 class StorageIO:
-    def __init__(self, path, mode, encoding='utf-8', package: Optional[str] = None,
-                 _package_type: Optional[PackageType] = None
-                 , _package_zip: Optional[str] = None):
-        self.path = path.replace('//', '/')
+    def __init__(
+            self,
+            path: str,
+            mode: str,
+            encoding: str = 'utf-8',
+            package: Optional[str] = None,
+            _package_type: Optional[PackageType] = None,
+            _package_zip: Optional[str] = None):
+        self.path = path
         self.mode = mode
         self.encoding = encoding
         self.package = package
@@ -127,14 +136,11 @@ class StorageIO:
 
     def __enter__(self) -> IO:
         kwargs = {} if 'b' in self.mode else {'encoding': self.encoding}
-        if self._package_type == PackageType.FILESYSTEM:
-            self.io = ir.files(self.package).joinpath(self.path).open(self.mode, **kwargs)
-        elif self._package_type == PackageType.ZIP:
-            if 'b' in self.mode:
-                with zipfile.ZipFile(self._package_zip) as zf:
+        if self._package_type == PackageType.ZIP:
+            with zipfile.ZipFile(self._package_zip) as zf:
+                if 'b' in self.mode:
                     self.io = zf.open(self.path, self.mode.replace('b', ''), **kwargs)
-            else:
-                with zipfile.ZipFile(self._package_zip) as zf:
+                else:
                     self.io = io.TextIOWrapper(zf.open(self.path, self.mode), **kwargs)
         else:
             self.io = open(self.path, self.mode, **kwargs)

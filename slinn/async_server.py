@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import Any
-from . import AsyncRequest, Address, Filter, HCDispatcher, FTDispatcher, utils, AsyncSSLSocketWrapper, AsyncSocketWrapper, exceptions, Server
+from typing import Any, Callable
+from . import AsyncRequest, Address, HCDispatcher, FTDispatcher, utils, AsyncSSLSocketWrapper, AsyncSocketWrapper, exceptions, Server
 from .tools.debugger import ExceptionResponse
 import asyncio
 import socket
@@ -16,11 +16,22 @@ class AsyncServer(Server):
     Main class to start async server
     """
 
-    def __init__(self, *dispatchers: Any, smart_navigation: bool = True, ssl_fullchain: str = None,
-                 ssl_key: str = None, timeout: float = 5, max_bytes_per_receive: int = 4096,
-                 max_header_size: int = 4294967296, _func: Callable = None, logger: logging.Logger = None,
-                 hcdp: HCDispatcher = None, htrf: FTDispatcher = None,
-                 max_requests: int = 200, debug: bool = True) -> None:  # type: ignore
+    def __init__(
+        self,
+        *dispatchers: Any,
+        smart_navigation: bool = True,
+        ssl_fullchain: str = None,
+        ssl_key: str = None,
+        timeout: float = 5,
+        max_bytes_per_receive: int = 65535,
+        max_header_size: int = 8192,
+        _func: Callable = None,
+        logger: logging.Logger = None,
+        hcdp: HCDispatcher = None,
+        htrf: FTDispatcher = None,
+        max_requests: int = 200,
+        debug=True
+    ):
         Server.__init__(
             self,
             *dispatchers,
@@ -35,7 +46,8 @@ class AsyncServer(Server):
             hcdp=hcdp,
             htrf=htrf,
             max_requests=max_requests,
-            debug=debug)
+            debug=debug
+        )
 
         self.loop: asyncio.EventLoop = None
 
@@ -85,6 +97,7 @@ class AsyncServer(Server):
                       if self.ssl else
                       AsyncSocketWrapper(connection, self.loop))
         max_requests = max_requests or self.max_requests
+        connection.settimeout(timeout or self.timeout)
         while not connection.closed():
             max_requests -= 1
             try:
@@ -96,7 +109,7 @@ class AsyncServer(Server):
                     data = bytearray()
                     while len(data) < self.max_header_size and b'\r\n\r\n' not in data:
                         try:
-                            b = await asyncio.wait_for(connection.recv(self.max_bytes_per_receive), timeout=timeout)
+                            b = await connection.recv(self.max_bytes_per_receive)
                             data += b
                             if not b:
                                 break
