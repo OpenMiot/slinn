@@ -1,3 +1,7 @@
+from __future__ import annotations
+from typing import Optional
+
+from slinn import TCPResponseChunk
 from . import WebSocketConnection, FTDispatcher, utils
 import urllib.parse
 import socket
@@ -17,7 +21,14 @@ class Request:
         for pair in text.split('&')
     })
 
-    def __init__(self, header: str, client_address: tuple[str, int], connection, server, htrf=None) -> None:
+    def __init__(
+            self,
+            header: str,
+            client_address: tuple[str, int],
+            connection: 'SocketWrapper',
+            server: 'Server',
+            htrf: Optional['FTDispatcher'] = None
+    ) -> None:
         parse_header = lambda text: {pair.strip().split('=')[0]: '='.join(pair.split('=')[1:]) for pair in
                                      text.split(',')}
 
@@ -34,7 +45,7 @@ class Request:
         self.protocol = self.header['ver'].split('/')[0]
         self.method = self.header['method']
         self.version = self.header['ver']
-        self.full_link = urllib.parse.unquote_plus(self.header['link'].replace('+', ' '))
+        self.full_link = urllib.parse.unquote_plus(self.header['link'])
         self.headers = self.header['data']
         host = self.headers.get('Host', '').split(':')
         if len(host) == 0:
@@ -70,7 +81,12 @@ class Request:
     def __repr__(self) -> str:
         return f'[{self.method}] request {self.full_link} from {"" if "." in self.ip else "["}{self.ip}{"" if "." in self.ip else "]"}:{self.port} on {self.host}'
 
-    def respond(self, response_class, *args, **kwargs) -> None:
+    def respond(
+        self,
+        response_class: 'TCPResponseChunk',
+        *args,
+        **kwargs
+    ) -> None:
         kwargs['request'] = self
         made = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
         if made is None:
@@ -80,7 +96,7 @@ class Request:
     def recv(self, n_bytes: int) -> bytes:
         return self.connection.recv(n_bytes)
 
-    def WebSocket(self):
+    def WebSocket(self) -> WebSocketConnection:
         conn = WebSocketConnection(self)
         conn.handshake()
         return conn

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from . import Request, Address, HCDispatcher, FTDispatcher, SocketWrapper, SSLSocketWrapper, utils, exceptions
 from .tools.debugger import ExceptionResponse
 import socket
@@ -20,17 +20,17 @@ class Server:
         self,
         *dispatchers: Any,
         smart_navigation: bool = True,
-        ssl_fullchain: str = None,
-        ssl_key: str = None,
+        ssl_fullchain: Optional[str] = None,
+        ssl_key: Optional[str] = None,
         timeout: float = 5,
         max_bytes_per_receive: int = 65535,
         max_header_size: int = 8192,
-        _func: Callable = None,
-        logger: logging.Logger = None,
-        hcdp: HCDispatcher = None,
-        htrf: FTDispatcher = None,
+        _func: Optional[Callable] = None,
+        logger: Optional[logging.Logger] = None,
+        hcdp: Optional[HCDispatcher] = None,
+        htrf: Optional[FTDispatcher] = None,
         max_requests: int = 200,
-        debug=True
+        debug: bool = True
     ):
         self.dispatchers = dispatchers
         self.smart_navigation = smart_navigation

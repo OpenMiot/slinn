@@ -4,17 +4,17 @@
 class slinn.Server(
     *dispatchers: Any,
     smart_navigation: bool = True,
-    ssl_fullchain: str = None,
-    ssl_key: str = None,
+    ssl_fullchain: typing.Optional[str] = None,
+    ssl_key: typing.Optional[str] = None,
     timeout: float = 5,
     max_bytes_per_receive: int = 65535,
     max_header_size: int = 8192,
-    _func: Callable = None,
-    logger: logging.Logger = None,
-    hcdp: HCDispatcher = None,
-    htrf: FTDispatcher = None,
+    _func: typing.Optional[typing.Callable] = None,
+    logger: typing.Optional[logging.Logger] = None,
+    hcdp: typing.Optional[slinn.HCDispatcher] = None,
+    htrf: typing.Optional[slinn.FTDispatcher] = None,
     max_requests: int = 200,
-    debug=True
+    debug: bool = True
 )
 ```
 1. `dispatcher` - диспатчеры, которые нужно загрузить для работы сервера
@@ -50,6 +50,6 @@ class slinn.Server(
   1. `client_socket` - подключение от клиента;
   2. `handle` - хандлер;
   3. `request` - запрос;
-  4. `http_data` - голый HTTP запроса (фактически только заголовок);
+  4. `http_data` - сериализованный HTTP запроса (фактически только заголовок);
   5. `http_header` - заголовок запроса;
   6. `max_requests` - переопределение максимального количества запросов на подключение по умолчанию.
