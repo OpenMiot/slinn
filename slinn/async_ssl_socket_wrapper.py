@@ -1,10 +1,18 @@
 from . import AsyncSocketWrapper
 import asyncio
+import socket
+import ssl
 
 
 class AsyncSSLSocketWrapper(AsyncSocketWrapper):
-    def __init__(self, sock, ssl_context, loop):
-        AsyncSocketWrapper.__init__(self, sock, loop)
+    def __init__(
+        self,
+        sock: socket.socket,
+        ssl_context: ssl.SSLContext,
+        loop: asyncio.AbstractEventLoop,
+        timeout: float = 5
+    ):
+        AsyncSocketWrapper.__init__(self, sock, loop, timeout)
         self.ssl_context = ssl_context
     
     async def do_handshake(self):

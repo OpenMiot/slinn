@@ -1,4 +1,5 @@
 from . import HttpResponseChunk
+from typing import Optional, Any
 import slinn
 import enum
 import datetime
@@ -11,8 +12,13 @@ class CookieSameSite(enum.Enum):
 
 
 class HttpResponseHeader(HttpResponseChunk):
-    def __init__(self, data: list[tuple] = None, status: str = '200 OK',
-                 content_type: str = 'text/plain; charset=utf-8', use_gzip: bool=True) -> None:
+    def __init__(
+        self,
+        data: Optional[list[tuple]] = None,
+        status: str = '200 OK',
+        content_type: str = 'text/plain; charset=utf-8',
+        use_gzip: bool = True
+    ):
         HttpResponseChunk.__init__(self, '')
         self.data = ([
                         ('Content-Type', content_type),
@@ -20,20 +26,22 @@ class HttpResponseHeader(HttpResponseChunk):
                         ('Connection', 'Keep-Alive'),
                     ] + (data if data is not None else []))
         self.status = status
-        self.use_gzip=use_gzip
+        self.use_gzip = use_gzip
 
-    def set_cookie(self,
-                   key: str,
-                   value: any,
-                   domain: str = None,
-                   expires: datetime.datetime = None,
-                   http_only: bool = None,
-                   max_age: int = None,
-                   partitioned: bool = None,
-                   path: str = None,
-                   secure: bool = None,
-                   same_site: CookieSameSite = None,
-                   attributes: dict = None) -> HttpResponseChunk:
+    def set_cookie(
+        self,
+        key: str,
+        value: Any,
+        domain: Optional[str] = None,
+        expires: Optional[datetime.datetime] = None,
+        http_only: Optional[bool] = None,
+        max_age: Optional[int] = None,
+        partitioned: Optional[bool] = None,
+        path: Optional[str] = None,
+        secure: Optional[bool] = None,
+        same_site: Optional[CookieSameSite] = None,
+        attributes: Optional[dict] = None
+    ) -> HttpResponseChunk:
         if attributes is None:
             attributes = {}
         attributes.update({

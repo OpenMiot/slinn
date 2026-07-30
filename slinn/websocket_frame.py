@@ -1,10 +1,18 @@
 from __future__ import annotations
+from typing import Optional, Iterator, Callable
 from . import WebSocketOpcodes
 import asyncio
 
 
 class WebSocketFrame:
-    def __init__(self, final: bool, opcode: WebSocketOpcodes, mask: bool, payload: bytes, masking_key: bytes = None) -> None:
+    def __init__(
+        self,
+        final: bool,
+        opcode: WebSocketOpcodes,
+        mask: bool,
+        payload: bytes,
+        masking_key: Optional[bytes] = None
+    ):
         self.final = final
         self.opcode = opcode
         self.mask = mask
@@ -12,12 +20,12 @@ class WebSocketFrame:
         self.payload = payload
 
     @staticmethod
-    def mask_payload(payload: bytes, masking_key: bytes):
+    def mask_payload(payload: bytes, masking_key: bytes) -> Iterator[int]:
         for i, byte in enumerate(payload):
             yield byte ^ masking_key[i % len(masking_key)]
 
     @staticmethod
-    def pack(frame: WebSocketFrame):
+    def pack(frame: WebSocketFrame) -> bytes:
         data = bytearray(b'\0'*2)
 
         ### +-+-+-+-+-------+
@@ -68,7 +76,7 @@ class WebSocketFrame:
         return bytes(data)
 
     @staticmethod
-    def unpack(data: bytes):
+    def unpack(data: bytes) -> WebSocketFrame:
         frame = WebSocketFrame(True, WebSocketOpcodes.CLOSE, False, b'')
 
         frame.final = bool(data[0] & 128)
@@ -96,87 +104,6 @@ class WebSocketFrame:
             frame.payload = data[i:i + payload_len]
 
         return frame
-
-    @staticmethod
-    async def _sock_read(recv):
-        data = bytearray(recv(2))
-        payload_len = data[1] & 127
-        if payload_len == 126:
-            data += recv(2)
-            payload_len = data[2:4]
-        elif payload_len == 127:
-            data += recv(4)
-            payload_len = data[2:6]
-        if data[1] & 128:
-            data += recv(4)
-        if payload_len < 126:
-            data += recv(payload_len)
-        elif 125 < payload_len < 65536:
-            data += recv(payload_len)
-        else:
-            data += recv(payload_len)
-        return WebSocketFrame.unpack(data)
-
-    @staticmethod
-    def sock_read(sock):
-        data = bytearray(sock.recv(2))
-        payload_len = data[1] & 127
-        if payload_len == 126:
-            data += sock.recv(2)
-            payload_len = int.from_bytes(data[2:4])
-        elif payload_len == 127:
-            data += sock.recv(4)
-            payload_len = int.from_bytes(data[2:6])
-        if data[1] & 128:
-            data += sock.recv(4)
-        if payload_len < 126:
-            data += sock.recv(payload_len)
-        elif 125 < payload_len < 65536:
-            data += sock.recv(payload_len)
-        else:
-            data += sock.recv(payload_len)
-        return WebSocketFrame.unpack(data)
-
-    @staticmethod
-    async def _async_sock_read(recv):
-        data = bytearray(await recv(2))
-        payload_len = data[1] & 127
-        if payload_len == 126:
-            data += await recv(2)
-            payload_len = data[2:4]
-        elif payload_len == 127:
-            data += await recv(4)
-            payload_len = data[2:6]
-        if data[1] & 128:
-            data += await recv(4)
-        if payload_len < 126:
-            data += await recv(payload_len)
-        elif 125 < payload_len < 65536:
-            data += await recv(payload_len)
-        else:
-            data += await recv(payload_len)
-        return WebSocketFrame.unpack(data)
-
-    @staticmethod
-    async def async_sock_read(sock):
-        loop = asyncio.get_running_loop()
-        data = bytearray(await loop.sock_recv(sock, 2))
-        payload_len = data[1] & 127
-        if payload_len == 126:
-            data += await loop.sock_recv(sock, 2)
-            payload_len = data[2:4]
-        elif payload_len == 127:
-            data += await loop.sock_recv(sock, 4)
-            payload_len = data[2:6]
-        if data[1] & 128:
-            data += await loop.sock_recv(sock, 4)
-        if payload_len < 126:
-            data += await loop.sock_recv(sock, payload_len)
-        elif 125 < payload_len < 65536:
-            data += await loop.sock_recv(sock, payload_len)
-        else:
-            data += await loop.sock_recv(sock, payload_len)
-        return WebSocketFrame.unpack(data)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
+from __future__ import annotations
 from typing import IO, Optional
 import importlib.util
-import importlib.resources as ir
 import os
 import shutil
 import zipfile
@@ -15,16 +15,16 @@ class PackageType(enum.Enum):
 
 class Storage:
     def __init__(
-            self,
-            root: str = '',
-            package: Optional[str] = None,
-            *,
-            zip_file: bool = False):
+        self,
+        root: str = '',
+        package: Optional[str] = None,
+        *,
+        zip_file: bool | str = False
+    ):
         if not os.path.exists(root) and not os.path.isdir(root) and not package and not zip_file:
             os.makedirs(root, exist_ok=True)
 
         self.root = root if package else os.path.abspath(root)
-        self.ctx = {}
         self.package = package
         self._package_type = None
         self._package_path = ''
@@ -46,8 +46,8 @@ class Storage:
             self._package_zip = zip_file
             self._package_type = PackageType.ZIP
 
-    def __call__(self, path, mode, encoding='utf-8'):
-        return StorageIO(self.get_path(path), mode, encoding, self.package, self._package_type, self._package_zip)
+    def __call__(self, path: str, mode: str, encoding: str = 'utf-8') -> StorageIO:
+        return StorageIO(self._get_path(path), mode, encoding, self.package, self._package_type, self._package_zip)
 
     def _check_writable(self) -> bool:
         return not self._package_zip
@@ -56,53 +56,53 @@ class Storage:
         if not self._check_writable():
             raise IOError("Filesystem is readonly")
 
-    def isfile(self, path):
+    def isfile(self, path: str) -> bool:
         if not self._package_zip:
-            return os.path.isfile(self.get_path(path))
+            return os.path.isfile(self._get_path(path))
         else:
             with zipfile.ZipFile(self._package_zip) as zf:
-                if self.get_path(path) in [info.filename for info in zf.infolist() if not info.is_dir()]:
+                if self._get_path(path) in [info.filename for info in zf.infolist() if not info.is_dir()]:
                     return True
             return False
 
-    def isdir(self, path):
+    def isdir(self, path: str) -> bool:
         if self._package_type != PackageType.ZIP:
-            return os.path.isdir(self.get_path(path))
+            return os.path.isdir(self._get_path(path))
         else:
             with zipfile.ZipFile(self._package_zip) as zf:
-                if self.get_path(path) in [info.filename.strip('/').strip() for info in zf.infolist() if info.is_dir()]:
+                if self._get_path(path) in [info.filename.strip('/').strip() for info in zf.infolist() if info.is_dir()]:
                     return True
             return False
 
-    def listdir(self, path):
+    def listdir(self, path: str) -> list[str]:
         if self._package_type != PackageType.ZIP:
-            return os.listdir(self.get_path(path))
+            return os.listdir(self._get_path(path))
         else:
             with zipfile.ZipFile(self._package_zip) as zf:
-                _path = self.get_path(path).strip('/')
+                _path = self._get_path(path).strip('/')
                 return list(set([
                     name.strip('/').removeprefix(_path).strip('/').strip().split('/')[0]
                     for name in zf.namelist()
                     if name.strip('/').startswith(_path) and name.removeprefix(_path).strip('/').strip()
                 ]))
 
-    def mkdir(self, path, mode=0o700):
+    def mkdir(self, path: str, mode: int = 0o700):
         self._require_writable()
-        os.mkdir(os.path.join(self._package_path, self.get_path(path)), mode)
+        os.mkdir(os.path.join(self._package_path, self._get_path(path)), mode)
 
-    def makedirs(self, path, mode=0o700, exist_ok=True):
+    def makedirs(self, path: str, mode: int = 0o700, exist_ok: bool = True):
         self._require_writable()
-        os.makedirs(self.get_path(path), mode, exist_ok)
+        os.makedirs(self._get_path(path), mode, exist_ok)
 
-    def remove(self, path):
+    def remove(self, path: str):
         self._require_writable()
-        os.remove(self.get_path(path))
+        os.remove(self._get_path(path))
 
-    def rmtree(self, path):
+    def rmtree(self, path: str):
         self._require_writable()
-        shutil.rmtree(self.get_path(path))
+        shutil.rmtree(self._get_path(path))
 
-    def get_path(self, path: str, add_package_path=True) -> str:
+    def _get_path(self, path: str, add_package_path: bool = True) -> str:
         if self.package is None:
             return os.path.join(self.root, path.lstrip('/')).replace('\\', '/').replace('//', '/').rstrip('/.').rstrip('/')
         elif self._package_type == PackageType.FILESYSTEM:
@@ -113,19 +113,20 @@ class Storage:
         else:
             return f"{self.package}/{self.root}/{path.lstrip('/')}".replace('\\', '/').replace('//', '/').rstrip('/.').strip('/').replace('/./', '/')
 
-    def substorage(self, path):
-        return Storage(self.get_path(path, add_package_path=False), self.package, zip_file=self._package_zip if self._package_zip else False)
+    def substorage(self, path: str) -> 'Storage':
+        return Storage(self._get_path(path, add_package_path=False), self.package, zip_file=self._package_zip if self._package_zip else False)
 
 
 class StorageIO:
     def __init__(
-            self,
-            path: str,
-            mode: str,
-            encoding: str = 'utf-8',
-            package: Optional[str] = None,
-            _package_type: Optional[PackageType] = None,
-            _package_zip: Optional[str] = None):
+        self,
+        path: str,
+        mode: str,
+        encoding: str = 'utf-8',
+        package: Optional[str] = None,
+        _package_type: Optional[PackageType] = None,
+        _package_zip: Optional[str] = None
+    ):
         self.path = path
         self.mode = mode
         self.encoding = encoding

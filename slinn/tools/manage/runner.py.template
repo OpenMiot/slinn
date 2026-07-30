@@ -32,6 +32,7 @@ checksum = get_dir_checksum('.')
     ssl_fullchain = <% ssl_fullchain %>,
     ssl_key = <% ssl_key %>,
     timeout = <% timeout %>,
+    max_timeout = <% max_timeout %>,
     max_bytes_per_receive = <% max_bytes_per_receive %>,
     max_header_size = <% max_header_size %>,
     _func=reloader,

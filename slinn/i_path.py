@@ -1,4 +1,4 @@
-from . import Filter
+from . import Filter, Request
 from .exceptions import PatternDoesNotMatch
 import re
 
@@ -9,17 +9,17 @@ class str(str): REGEXP = r'[\w\- ]+'
 
 
 class IPath(Filter):
-    def __init__(self, pattern, methods=('GET', 'POST')):
+    def __init__(self, pattern: str, methods: tuple[str, ...] = ('GET', 'POST')):
         super().__init__(pattern, methods)
         self.types = {}
         self._pattern = pattern
         for a in re.findall(r'<\w+ \w+>', pattern):
             t, n = a[1:-1].split()
-            t = eval(t)
+            t = eval(t.split()[0])
             self.filter = self.filter.replace(a, '(?P<'+n+'>' + t.REGEXP + ')')
             self.types[n] = t
 
-    def args(self, request):
+    def args(self, request: Request) -> dict:
         args = re.search(self.filter, request.link)
         if args is None:
             raise PatternDoesNotMatch(f'A path matching template "{self._pattern}", but path "{request.full_link}" was given"')

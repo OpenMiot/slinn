@@ -14,4 +14,4 @@ class WebSocketHandshake(HttpResponseHeader):
             ('Upgrade', 'websocket'),
             ('Connection', 'Upgrade'),
             ('Sec-WebSocket-Accept', sec_websocket_accept)
-        ], status='101 Switching Protocols')
+        ], status='101 Switching Protocols', use_gzip=False)

@@ -1,5 +1,4 @@
 from . import TCPResponseChunk
-import gzip
 
 
 class HttpResponseChunk(TCPResponseChunk):

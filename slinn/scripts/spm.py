@@ -16,7 +16,7 @@ import shutil
 import platform
 
 
-__PD, __PI = datetime(2026, 4, 2), 1
+__PD, __PI = datetime(2026, 7, 2), 1
 
 VERSION = {
     'name': 'Slinn Package Manager',
@@ -169,7 +169,7 @@ def install(args):
                     'package': package,
                     'size_bytes': size_bytes,
                     'filename': filename,
-                    'path': os.path.join(slinn_root.get_path('spm/tmp/'), filename),
+                    'path': os.path.join(slinn_root._get_path('spm/tmp/'), filename),
                     'ver': ver
                 })
         except urllib.error.HTTPError as e:
@@ -236,22 +236,22 @@ def install(args):
                 if manifest.get('zipSafe', True):
                     packages['plugins'][v['pack_key']]['includes'].append(f'spm_packages/Plugins/{v["pack_key"]}.zip')
                     if not project.isfile(f'spm_packages/Plugins/{v["pack_key"]}.zip'):
-                        os.rename(v['path'], project.get_path(f'spm_packages/Plugins/{v["pack_key"]}.zip'))
+                        os.rename(v['path'], project._get_path(f'spm_packages/Plugins/{v["pack_key"]}.zip'))
                         print(f'  - Installed {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
                     else:
                         project.remove(f'spm_packages/Plugins/{v["pack_key"]}.zip')
-                        os.rename(v['path'], project.get_path(f'spm_packages/Plugins/{v["pack_key"]}.zip'))
+                        os.rename(v['path'], project._get_path(f'spm_packages/Plugins/{v["pack_key"]}.zip'))
                         print(f'  - Reinstalled {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
                 else:
                     packages['plugins'][v['pack_key']]['includes'].append(f'spm_packages/Plugins/{v["pack_key"]}')
                     if not project.isdir(f'spm_packages/Plugins/{v["pack_key"]}'):
                         with zipfile.ZipFile(v['path']) as zf:
-                            zf.extractall(project.get_path(f'spm_packages/Plugins/{v["pack_key"]}'))
+                            zf.extractall(project._get_path(f'spm_packages/Plugins/{v["pack_key"]}'))
                         print(f'  - Installed {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
                     else:
                         project.rmtree(f'spm_packages/Plugins/{v["pack_key"]}')
                         with zipfile.ZipFile(v['path']) as zf:
-                            zf.extractall(project.get_path(f'spm_packages/Plugins/{v["pack_key"]}'))
+                            zf.extractall(project._get_path(f'spm_packages/Plugins/{v["pack_key"]}'))
                         print(f'  - Reinstalled {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
             elif manifest['type'] == 'template':
                 packages['templates'][v['pack_key']] = {
@@ -267,12 +267,12 @@ def install(args):
                 packages['templates'][v['pack_key']]['includes'].append(f'spm_packages/Templates/{v["pack_key"]}')
                 if not project.isdir(f'spm_packages/Templates/{v["pack_key"]}'):
                     with zipfile.ZipFile(v['path']) as zf:
-                        zf.extractall(project.get_path(f'spm_packages/Templates/{v["pack_key"]}'))
+                        zf.extractall(project._get_path(f'spm_packages/Templates/{v["pack_key"]}'))
                     print(f'  - Installed {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
                 else:
                     project.rmtree(f'spm_packages/Templates/{v["pack_key"]}')
                     with zipfile.ZipFile(v['path']) as zf:
-                        zf.extractall(project.get_path(f'spm_packages/Templates/{v["pack_key"]}'))
+                        zf.extractall(project._get_path(f'spm_packages/Templates/{v["pack_key"]}'))
                     print(f'  - Reinstalled {v["pack_key"]}@{v["repo_key"]}{GRAY}[{v["ver"]}]{RESET}.')
             else:
                 print(f'  - {RED}{v["pack_key"]}@{v["repo_key"]}[{v["ver"]}] package type {manifest["type"]} is not supported.{RESET}')

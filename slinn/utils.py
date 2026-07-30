@@ -4,6 +4,7 @@ import json
 import re
 import threading
 from abc import ABCMeta
+from typing import Any
 
 
 optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
@@ -63,7 +64,7 @@ def min_restartswith_size(text: str, reg: str) -> int:
     return len(smallest) if smallest is not None else 2147483647
 
 
-def representate(obj: any) -> bytes:
+def representate(obj: Any) -> bytes:
     if type(obj) == dict:
         return json.dumps({key:representate(obj[key]).decode() for key in obj.keys()}, ensure_ascii=False).encode()
     if type(obj) in [list, tuple, set]:
@@ -82,6 +83,34 @@ def representate(obj: any) -> bytes:
     try: return json.dumps({key:representate(obj.__dict__[key]).decode() for key in obj.__dict__.keys()}, ensure_ascii=False).encode()
     except Exception as e: print(e)
     return f'<{type(obj)} object at {id(obj)}>'
+
+
+def __representate_str(obj: any) -> str | dict | list | int | float | bool:
+    if isinstance(obj, dict):
+        return {key: __representate_str(obj[key]) for key in obj.keys()}
+    if type(obj) in (list, tuple, set):
+        return [__representate_str(elem) for elem in obj]
+    if type(obj) in (str, int, float, bool):
+        return obj
+    if isinstance(obj, bytes):
+        return obj.decode()
+    if type(obj).__str__ != object.__str__ or type(obj).__repr__ != object.__repr__:
+        try:
+            return repr(obj)
+        except Exception:
+            pass
+    try:
+        return json.dumps({key: __representate_str(obj.__dict__[key]) for key in obj.__dict__.keys()}, ensure_ascii=False)
+    except Exception as e:
+        pass
+    return f'<{type(obj)} object at {id(obj)}>'
+
+
+def representate_str(obj: any) -> str:
+    try:
+        return json.dumps(__representate_str(obj), ensure_ascii=False)
+    except:
+        return __representate_str(obj)
 
 
 def rename_class(cls, name):

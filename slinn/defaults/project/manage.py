@@ -147,7 +147,8 @@ def help_command():
         'run': 'start server',
         'create-app {app`s name} host=(host1) host=(host2)...': 'create a new app',
         'delete-app {app`s name} (project`s path)': 'delete an app',
-        'template {template`s name} (projects`s path)': 'install a template',
+        'template {template`s name} (projects`s path)': 'install a template app',
+        'template-classic {template`s name} (projects`s path)': 'install a classic template app',
         'migrate-all': 'apply migrations',
         'help': 'display this message',
         'version': 'display slinn`s version'
@@ -159,7 +160,7 @@ def version_command():
     print(slinn.version)
 
 
-@root_command.subcommand('_template', ('name', 'path'))
+@root_command.subcommand('template-classic', ('name', 'path'))
 def template_command(args):
     apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
     if 'name' not in args.keys():

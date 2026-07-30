@@ -4,9 +4,8 @@ from .exceptions import NotAWebSocketConnection
 
 
 class WebSocketConnection:
-    def __init__(self, request: Request):
+    def __init__(self, request: 'Request'):
         self.request = request
-        self.closed = False
 
     def handshake(self):
         if 'Sec-WebSocket-Key' not in self.request.headers:
@@ -31,16 +30,21 @@ class WebSocketConnection:
 
     def close(self, reason: str = ''):
         self._send(WebSocketOpcodes.CLOSE, reason.encode())
+        if not self.request.connection.closed():
+            self.request.connection.close()
 
-    def send(self, payload):
-        if type(payload) == bytes:
+    def settimeout(self, timeout: float):
+        self.request.connection.settimeout(timeout)
+
+    def send(self, payload: bytes | str):
+        if isinstance(payload, bytes):
             self.send_binary(payload)
-        elif type(payload) == str:
+        elif isinstance(payload, str):
             self.send_text(payload)
         else:
             raise TypeError()
 
-    def read(self):
+    def read(self) -> WebSocketFrame:
         data = bytearray(self.request.recv(2))
         payload_len = data[1] & 127
         if payload_len == 126:
@@ -59,7 +63,6 @@ class WebSocketConnection:
             data += self.request.recv(payload_len)
         frame = WebSocketFrame.unpack(data)
         if frame.opcode == WebSocketOpcodes.CLOSE:
-            self.closed = True
-            if utils.check_socket(self.request.connection):
+            if not self.request.connection.closed():
                 self.request.connection.close()
         return frame

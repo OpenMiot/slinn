@@ -11,12 +11,13 @@ class HttpAPIResponse(HttpResponse):
     """
 
     def __init__(
-            self,
-            payload: Any,
-            data: list[tuple] = None,
-            status: str = '200 OK',
-            content_type: str = 'text/plain; charset=utf-8',
-            use_gzip: bool = True,
-            request: Optional[Request] = None):
+        self,
+        payload: Any,
+        data: list[tuple] = None,
+        status: str = '200 OK',
+        content_type: str = 'text/plain; charset=utf-8',
+        use_gzip: bool = True,
+        request: Optional[Request] = None
+    ):
         super().__init__(payload, data, status, content_type, use_gzip, request)
         self.data.append(('Access-Control-Allow-Origin', '*'))

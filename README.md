@@ -94,7 +94,7 @@ asyncio.run(AsyncServer(dp).listen(Address(8080)))
 ```
 then write `python example.py`
 
-Excepted output
+Expected output
 ```
 helloworld $ venv/bin/python example.py
 HTTP server is available on http://localhost:8080/

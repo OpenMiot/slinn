@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 from . import AsyncRequest, Address, HCDispatcher, FTDispatcher, utils, AsyncSSLSocketWrapper, AsyncSocketWrapper, exceptions, Server
 from .tools.debugger import ExceptionResponse
 import asyncio
@@ -20,17 +20,18 @@ class AsyncServer(Server):
         self,
         *dispatchers: Any,
         smart_navigation: bool = True,
-        ssl_fullchain: str = None,
-        ssl_key: str = None,
+        ssl_fullchain: Optional[str] = None,
+        ssl_key: Optional[str] = None,
         timeout: float = 5,
+        max_timeout: float = 60,
         max_bytes_per_receive: int = 65535,
         max_header_size: int = 8192,
-        _func: Callable = None,
-        logger: logging.Logger = None,
-        hcdp: HCDispatcher = None,
-        htrf: FTDispatcher = None,
+        _func: Optional[Callable] = None,
+        logger: Optional[logging.Logger] = None,
+        hcdp: Optional[HCDispatcher] = None,
+        htrf: Optional[FTDispatcher] = None,
         max_requests: int = 200,
-        debug=True
+        debug: bool = True
     ):
         Server.__init__(
             self,
@@ -49,7 +50,7 @@ class AsyncServer(Server):
             debug=debug
         )
 
-        self.loop: asyncio.EventLoop = None
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
 
     async def listen(self, address: Address):
         self.server_socket = None
@@ -71,7 +72,7 @@ class AsyncServer(Server):
             self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             self.ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
             self.ssl_context.load_cert_chain(certfile=self.ssl_cert, keyfile=self.ssl_key)
-        self.server_socket.settimeout(self.timeout)
+        self.server_socket.settimeout(min(self.timeout, self.max_timeout))
         self.server_socket.listen()
         self.server_socket.setblocking(False)
         self.logger.info('Server started to listening')
@@ -92,12 +93,19 @@ class AsyncServer(Server):
         except KeyboardInterrupt:
             self.exit()
 
-    async def handle_request(self, connection, client_address, wrapped=False, timeout=None, max_requests=None):
+    async def handle_request(
+        self,
+        connection: AsyncSocketWrapper,
+        client_address: tuple[str, int],
+        wrapped: bool = False,
+        timeout: Optional[float] = None,
+        max_requests: Optional[int] = None
+    ) -> None:
         connection = (AsyncSSLSocketWrapper(connection, self.ssl_context, self.loop)
                       if self.ssl else
                       AsyncSocketWrapper(connection, self.loop))
         max_requests = max_requests or self.max_requests
-        connection.settimeout(timeout or self.timeout)
+        connection.settimeout(min(self.max_timeout, timeout or self.timeout))
         while not connection.closed():
             max_requests -= 1
             try:
@@ -123,9 +131,9 @@ class AsyncServer(Server):
                     if not header:
                         connection.close()
                         break
+                    connection.paste(b'\r\n\r\n'.join(data[1:]))
                     request = AsyncRequest(self.loop, header, client_address, connection, self, htrf=self.htrf)
                     self.logger.info(repr(request))
-                    request.connection.paste(b'\r\n\r\n'.join(data[1:]))
                 except KeyError:
                     self.logger.info('Got KeyError, probably invalid request. Ignore')
                     continue
@@ -141,7 +149,9 @@ class AsyncServer(Server):
                     if sizes:
                         if await self.answer_request(connection, handles[sizes.index(max(sizes))], request,
                                                         data, header, max_requests):
-                            connection._timeout = request.keep_alive.get('timeout', connection._timeout)
+                            connection._timeout = min(
+                                self.max_timeout, request.keep_alive.get('timeout', connection._timeout)
+                            )
                             max_requests = request.keep_alive.get('max', max_requests)
                             continue
                 else:
@@ -150,7 +160,9 @@ class AsyncServer(Server):
                         if dispatcher.check(request.host):
                             for handle in dispatcher.handles:
                                 if await self.answer_request(connection, handle, request, data, header, max_requests):
-                                    connection._timeout = request.keep_alive.get('timeout', connection._timeout)
+                                    connection._timeout = min(
+                                        self.max_timeout, request.keep_alive.get('timeout', connection._timeout)
+                                    )
                                     max_requests = request.keep_alive.get('max', max_requests)
                                     _cont = True
                                     break
@@ -163,7 +175,10 @@ class AsyncServer(Server):
                 except exceptions.HandlerNotFound:
                     warnings.warn('Error code 404 `s handler is not defined', exceptions.Handler404NotFound)
                     await connection.send(b'HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\n\r\n404 Not Found')
-                connection._timeout = request.keep_alive.get('timeout', connection._timeout)
+                connection._timeout = min(
+                    self.max_timeout,
+                    request.keep_alive.get('timeout', connection._timeout)
+                )
                 max_requests = request.keep_alive.get('max', max_requests)
                 continue
             except KeyboardInterrupt:
@@ -188,11 +203,19 @@ class AsyncServer(Server):
                     warnings.warn('Error code 500 `s handler is not defined', exceptions.Handler500NotFound)
                     await connection.send(
                         b'HTTP/1.1 500 Internal Server Error\r\nContent-Length: 25\r\n\r\n500 Internal Server Error')
-                connection._timeout = request.keep_alive.get('timeout', connection._timeout)
+                connection._timeout = min(self.max_timeout, request.keep_alive.get('timeout', connection._timeout))
                 max_requests = request.keep_alive.get('max', max_requests)
                 continue
 
-    async def answer_request(self, connection, handle, request, http_data, http_header, max_requests):
+    async def answer_request(
+        self,
+        connection: AsyncSocketWrapper,
+        handle: 'Handle',
+        request: AsyncRequest,
+        http_data: bytearray,
+        http_header: str,
+        max_requests: int
+    ) -> bool:
         if not handle.filter.check(request):
             return False
         if connection.closed():

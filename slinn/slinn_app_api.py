@@ -4,11 +4,11 @@ import json
 
 
 class SlinnAppAPI:
-    def __init__(self, path, package: Optional[str] = None):
+    def __init__(self, path: str, package: Optional[str] = None):
         self.path = path
         self.root = Storage(self.path, package)
 
     @property
-    def config(self):
+    def config(self) -> dict:
         with self.root('config.json', 'r') as config:
             return json.load(config)

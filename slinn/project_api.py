@@ -3,6 +3,7 @@ from .tools.manage.misc import (
     replace_all, add_quotes_to_list, packages
 )
 from .tools.manage.defaults import APP_CONFIG
+from typing import Optional
 import os
 import json
 import shutil
@@ -10,6 +11,31 @@ import sys
 import slinn
 
 pp = Preprocessor()
+
+_DEFAULT_PROJECT_CONFIG = {
+    'name': "Slinn",
+    'async': True,
+    'server_class': "AsyncServer",
+
+    'host': "localhost",
+    'port': 8080,
+
+    'debug': True,
+
+    'ssl': {
+        "fullchain": False,
+        "key": False
+    },
+    'apps': [],
+
+    'smart_navigation': True,
+
+    'timeout': 0.5,
+    'max_timeout': 60,
+    'max_bytes_per_receive': 65535,
+    'max_header_size': 8192
+}
+
 
 
 class SlinnApiException(Exception): ...
@@ -29,13 +55,14 @@ class ProjectAPI:
     @staticmethod
     def get_config() -> dict:
         with open('project.json', 'r') as project:
-            project_json = json.load(project)
+            project_json = _DEFAULT_PROJECT_CONFIG.copy()
+            project_json.update(json.load(project))
             if 'apps' not in project_json.keys():
                 project_json['apps'] = []
             return project_json
 
     @staticmethod
-    def update_config(updates: dict | None = None) -> None:
+    def update_config(updates: Optional[dict] = None) -> None:
         updates = updates or {}
         project_json = ProjectAPI.get_config()
         if 'apps' in updates:
@@ -46,7 +73,7 @@ class ProjectAPI:
             json.dump(project_json, project, indent=4)
 
     @staticmethod
-    def create_app(name: str, hosts: tuple[str] = (), *, init: bool = True) -> None:
+    def create_app(name: str, hosts: tuple[str, ...] = (), *, init: bool = True) -> None:
         ensure_appname = replace_all(name, '-&$#!@%^().,', '_')
         if os.path.isdir(ensure_appname):
             raise AppExistsException(name)
@@ -74,7 +101,7 @@ class ProjectAPI:
         ProjectAPI.update_config()
 
     @staticmethod
-    def create_app_from_template(name, template_name: str, path: str = '.',
+    def create_app_from_template(name: str, template_name: str, path: str = '.',
                                  templates_folder=slinn.root + '/templates') -> None:
         apppath = (path + '?').replace('/?', '').replace('?', '')
         config = ProjectAPI.get_config()
@@ -144,15 +171,15 @@ class ProjectAPI:
         ProjectAPI.update_config({'debug': mode})
 
     @staticmethod
-    def get_apps():
+    def get_apps() -> set[str]:
         return set(ProjectAPI.get_config()['apps'])
 
     @staticmethod
-    def get_name():
+    def get_name() -> str:
         return ProjectAPI.get_config()['name']
 
     @staticmethod
-    def is_ssl():
+    def is_ssl() -> bool:
         config = ProjectAPI.get_config()
         return 'ssl' in config and \
             'fullchain' in config['ssl'] and \
@@ -161,7 +188,7 @@ class ProjectAPI:
             config['ssl']['key']
 
     @staticmethod
-    def get_link():
+    def get_link() -> str:
         config = ProjectAPI.get_config()
         is_ssl = ProjectAPI.is_ssl()
         protocol = 'https' if is_ssl else 'http'
@@ -181,11 +208,11 @@ class ProjectAPI:
         os._exit(0)
 
     @staticmethod
-    def get_plugins():
+    def get_plugins() -> list[dict]:
         return packages()['plugins']
 
     @staticmethod
-    def get_plugin_storage(key):
+    def get_plugin_storage(key) -> Storage:
         plugin = packages()['plugins'][key]
         return Storage('', zip_file=f'spm_packages/Plugins/{key}.zip') if plugin['zip'] else Storage(f'spm_packages/Plugins/{key}')
 

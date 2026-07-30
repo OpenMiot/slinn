@@ -1,3 +1,0 @@
-# slinn.HttpRender
-
-Start typing here...

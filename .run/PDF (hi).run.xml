@@ -1,0 +1,19 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="PDF (hi)" type="StardustRunConfiguration" factoryName="build-pdf">
+    <option name="addCover" value="true" />
+    <option name="addFooter" value="true" />
+    <option name="copyright" value="Проект Miot, Марк Радин" />
+    <option name="description" value="Высокоуровнвый расширяемый асинхронный фреймворк для создания Web приложений на языке Python" />
+    <option name="folderPath" value="$PROJECT_DIR$" />
+    <option name="footer" value="Документация по Slinn 2" />
+    <option name="header" />
+    <option name="instanceId" value="hi" />
+    <option name="instanceName" value="Документация по фреймворку Slinn" />
+    <option name="layout" />
+    <option name="logoPath" value="$PROJECT_DIR$/Writerside/images/slinn_logo_transparent.png" />
+    <option name="moduleName" value="Writerside" />
+    <option name="title" value="Документация по Slinn 2" />
+    <option name="tocTitle" value="Содержание" />
+    <method v="2" />
+  </configuration>
+</component>

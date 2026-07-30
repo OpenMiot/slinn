@@ -1,8 +1,6 @@
 from __future__ import annotations
 from typing import Optional
-
-from slinn import TCPResponseChunk
-from . import WebSocketConnection, FTDispatcher, utils
+from . import WebSocketConnection, TCPResponseChunk, FTDispatcher, SocketWrapper, utils
 import urllib.parse
 import socket
 
@@ -22,15 +20,17 @@ class Request:
     })
 
     def __init__(
-            self,
-            header: str,
-            client_address: tuple[str, int],
-            connection: 'SocketWrapper',
-            server: 'Server',
-            htrf: Optional['FTDispatcher'] = None
-    ) -> None:
-        parse_header = lambda text: {pair.strip().split('=')[0]: '='.join(pair.split('=')[1:]) for pair in
-                                     text.split(',')}
+        self,
+        header: str,
+        client_address: tuple[str, int],
+        connection: SocketWrapper,
+        server: 'Server',
+        htrf: Optional[FTDispatcher] = None
+    ):
+        parse_header = lambda text: {
+            pair.strip().split('=')[0]: '='.join(pair.split('=')[1:])
+            for pair in text.split(',')[1:]
+        }
 
         self.type = header.split('\r\n')[0].strip().split(' ')
         self.header = {
@@ -83,7 +83,7 @@ class Request:
 
     def respond(
         self,
-        response_class: 'TCPResponseChunk',
+        response_class: type[TCPResponseChunk],
         *args,
         **kwargs
     ) -> None:
@@ -96,9 +96,10 @@ class Request:
     def recv(self, n_bytes: int) -> bytes:
         return self.connection.recv(n_bytes)
 
-    def WebSocket(self) -> WebSocketConnection:
+    def WebSocket(self, timeout: float) -> WebSocketConnection:
         conn = WebSocketConnection(self)
         conn.handshake()
+        conn.settimeout(timeout)
         return conn
 
 
@@ -161,11 +162,11 @@ class RequestBody:
             }
         return {}
 
-    def skip(self):
+    def skip(self) -> None:
         while not self.end():
             self.receive()
 
-    def files_boundary(self) -> str | None:
+    def files_boundary(self) -> Optional[str]:
         return self._request.content_type[1].get('boundary', None)
 
     def next_file_header(self) -> dict:

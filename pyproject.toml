@@ -4,11 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinn"
-version = "2.3.8"
+version = "2.3.9"
 description = "An HTTP server framework"
 readme = "README.md"
-requires-python = ">=3.10"
-authors = [{ name = "Mark Radin", email = "openmiot@gmail.com" }]
+requires-python = ">=3.12"
+authors = [
+    { name = "Miot Project", email = "openmiot@gmail.com"},
+    { name = "Mark Radin", email = "mrybs2@gmail.com" }
+]
 urls = { Homepage = "https://wiki.miot.su/slinn" }
 
 [project.scripts]
@@ -22,4 +25,4 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-exclude = ["t*", "venv*", "Writerside*", "build*"]
+exclude = ["t*", "venv*", "Writerside*", "build*", "test*", ".venv*"]

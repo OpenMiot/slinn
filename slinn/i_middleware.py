@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Callable
 
 
 class IMiddleware(ABC):
@@ -7,7 +8,8 @@ class IMiddleware(ABC):
     Interface for creating middlewares
     """
 
-    def __init__(self, *args, **kwargs) -> None: ...
+    @abstractmethod
+    def __init__(self, *args, **kwargs): ...
     
     @abstractmethod
-    def __call__(self, *args, **kwargs) -> callable: ...
+    def __call__(self, func: Callable) -> Callable: ...

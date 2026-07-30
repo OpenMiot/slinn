@@ -1,5 +1,6 @@
 from slinn.http_response import HttpResponse
 from slinn import utils, FTDispatcher, Request
+from typing import Optional
 
 
 class HttpRender(HttpResponse):
@@ -8,14 +9,26 @@ class HttpRender(HttpResponse):
     Renders any file to HttpResponse-based object
     """
 
-    def __init__(self, file_path: str, data: list[tuple] = None, status: str = '200 OK', ppdata: dict = None, storage = open, request: Request = None) -> None:
+    def __init__(
+        self,
+        file_path: str,
+        data: Optional[list[tuple]] = None,
+        status: str = '200 OK',
+        ppdata: Optional[dict] = None,
+        storage = open,
+        request: Optional[Request] = None
+    ):
         self.file_path = file_path
         self.data = data if data is not None else []
         self.status = status
         self.ppdata = ppdata if ppdata is not None else {}
         self.storage = storage
 
-    def make(self, version: str = 'HTTP/1.1', htrf = None) -> bytes:
+    def make(
+        self,
+        version: str = 'HTTP/1.1',
+        htrf: Optional[FTDispatcher] = None
+    ) -> bytes:
         def size(_filter: str, text: str) -> int:
             a = utils.min_restartswith_size(text, _filter) if utils.rematcheswith(text, _filter) else 2147483647
             b = utils.Bmin_restartswith_size(text, _filter) if utils.rematcheswith(text, _filter) else 2147483647

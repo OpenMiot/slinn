@@ -1,7 +1,7 @@
 from . import SocketWrapper
 from .exceptions import SocketClosed
 import asyncio
-import time
+import socket
 
 
 class AsyncSocketWrapper(SocketWrapper):
@@ -15,7 +15,7 @@ class AsyncSocketWrapper(SocketWrapper):
             self.buffer.extend(data)
             self.on_data_received(data)
 
-    def __init__(self, sock, loop, timeout=5):
+    def __init__(self, sock: socket.socket, loop: asyncio.AbstractEventLoop, timeout: float = 5):
         SocketWrapper.__init__(self, sock, timeout)
         self.loop = loop
         self._transport, self._protocol = None, None
@@ -35,30 +35,31 @@ class AsyncSocketWrapper(SocketWrapper):
 
         def _protocol_factory():
             return AsyncSocketWrapper._Protocol(_data_received_callback)
-        
+
         self._transport, self._protocol = await self.loop.create_connection(_protocol_factory, sock=self._sock)
         self._handshake_complete = True
-    
-    async def recv(self, n_bytes):
+
+    async def recv(self, n_bytes: int):
         await self.do_handshake()
 
-        _start = time.time()
-        while not self.buffer and time.time() - _start < self._timeout:
-            await asyncio.sleep(0)
+        if not self.buffer:
+            await asyncio.wait_for(self._read_event.wait(), timeout=self._timeout)
+
+        self._read_event.clear()
 
         data = self.buffer[:n_bytes] if len(self.buffer) > n_bytes else self.buffer
         self.buffer = self.buffer[n_bytes:] if len(self.buffer) > n_bytes else bytearray()
         return data
 
-    async def send(self, data):
+    async def send(self, data: bytes):
         if self.closed():
             raise SocketClosed('socket closed')
         await self.do_handshake()
         self._transport.write(data)
 
-    def settimeout(self, timeout):
+    def settimeout(self, timeout: float):
         self._timeout = timeout
-    
+
     def close(self):
         if self._transport:
             self._transport.close()

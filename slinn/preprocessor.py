@@ -2,6 +2,7 @@ import re
 import urllib.parse
 import html
 from . import utils
+from typing import Any
 
 
 class Preprocessor:
@@ -11,7 +12,7 @@ class Preprocessor:
     """
     
     @staticmethod
-    def get_nested_value(obj, key_path):
+    def get_nested_value(obj: Any, key_path: str) -> Any:
         current = obj
         parts = key_path.split('.')
         for part in parts:

@@ -117,7 +117,7 @@ def update_command(args):
 
 @root_command.subcommand('help')
 def help_command():
-    print(help_generator('Slinn', sys.argv[0], {
+    print(help_generator('Slinn Admin', sys.argv[0], {
         'create-project {project`s name}': 'create project',
         'update-project {project`s name}': 'update project',
         'help': 'display this message',

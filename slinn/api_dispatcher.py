@@ -5,7 +5,7 @@ import functools
 
 class ApiDispatcher(Dispatcher):
     """FastAPI-style dispatcher for CRUD methods"""
-    def __init__(self, *hosts, prefix: str=''):
+    def __init__(self, *hosts, prefix: str = ''):
         super().__init__(*hosts)
         self.prefix = prefix
 
@@ -16,7 +16,7 @@ class ApiDispatcher(Dispatcher):
         self.delete = functools.partial(self._register_handler_decorator, methods=('DELETE',))
         self.options = functools.partial(self._register_handler_decorator, methods=('OPTIONS',))
 
-    def _register_handler_decorator(self, path: str = '', methods: tuple[str] = ()):
+    def _register_handler_decorator(self, path: str = '', methods: tuple[str, ...] = ()):
         def decorator(func):
             @functools.wraps(func)
             async def wrapper(*args, **kwargs):

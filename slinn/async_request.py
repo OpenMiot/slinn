@@ -1,6 +1,9 @@
-from . import Request, RequestBody, AsyncWebSocketConnection, utils
+from __future__ import annotations
+from . import Request, RequestBody, AsyncWebSocketConnection, TCPResponseChunk, FTDispatcher, AsyncSocketWrapper, utils
+from typing import Optional
 import urllib.parse
 import socket
+import asyncio
 
 
 class AsyncRequest(Request):
@@ -8,12 +11,31 @@ class AsyncRequest(Request):
     Representation of HTTP request from client
     """
 
-    def __init__(self, loop, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        header: str,
+        client_address: tuple[str, int],
+        connection: AsyncSocketWrapper,
+        server: 'AsyncServer',
+        htrf: Optional[FTDispatcher] = None,
+    ):
+        super().__init__(
+            header=header,
+            client_address=client_address,
+            connection=connection,
+            server=server,
+            htrf=htrf
+        )
         self.loop = loop
         self.body = AsyncRequestBody(self)
 
-    async def respond(self, response_class, *args, **kwargs) -> None:
+    async def respond(
+        self,
+        response_class: type[TCPResponseChunk],
+        *args,
+        **kwargs
+    ) -> None:
         buffer = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
         if buffer is None:
             return
@@ -30,9 +52,10 @@ class AsyncRequest(Request):
     async def recv(self, n_bytes: int) -> bytes:
         return await self.connection.recv(n_bytes)
 
-    async def WebSocket(self):
+    async def WebSocket(self, timeout: float) -> AsyncWebSocketConnection:
         conn = AsyncWebSocketConnection(self)
         await conn.handshake()
+        conn.settimeout(timeout)
         return conn
 
 

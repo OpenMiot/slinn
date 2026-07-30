@@ -1,12 +1,11 @@
 from __future__ import annotations
-from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, HttpResponseChunk, utils
+from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, HttpResponseChunk, WebSocketConnection
 from .exceptions import NotAWebSocketConnection
 
 
-class AsyncWebSocketConnection:
-    def __init__(self, request: AsyncRequest):
-        self.request = request
-        self.closed = False
+class AsyncWebSocketConnection(WebSocketConnection):
+    def __init__(self, request: 'AsyncRequest'):
+        super().__init__(request)
 
     async def handshake(self):
         if 'Sec-WebSocket-Key' not in self.request.headers:
@@ -32,15 +31,19 @@ class AsyncWebSocketConnection:
     async def close(self, reason: str = ''):
         await self._send(WebSocketOpcodes.CLOSE, reason.encode())
 
-    async def send(self, payload):
-        if type(payload) == bytes:
+    @property
+    def closed(self) -> bool:
+        return self.request.connection.closed()
+
+    async def send(self, payload: bytes | str):
+        if isinstance(payload, bytes):
             await self.send_binary(payload)
-        elif type(payload) == str:
+        elif isinstance(payload, str):
             await self.send_text(payload)
         else:
             raise TypeError()
 
-    async def read(self):
+    async def read(self) -> WebSocketFrame:
         data = bytearray(await self.request.recv(2))
         payload_len = data[1] & 127
         if payload_len == 126:
@@ -59,7 +62,6 @@ class AsyncWebSocketConnection:
             data += await self.request.recv(payload_len)
         frame = WebSocketFrame.unpack(data)
         if frame.opcode == WebSocketOpcodes.CLOSE:
-            self.closed = True
-            if utils.check_socket(self.request.connection):
+            if not self.request.closed():
                 self.request.connection.close()
         return frame

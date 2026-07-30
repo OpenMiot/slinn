@@ -25,5 +25,5 @@ class Filter:
         else:
             return b
 
-    def args(self, *args, **kwargs):
+    def args(self, *args, **kwargs) -> dict:
         return {}

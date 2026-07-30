@@ -1,14 +1,15 @@
 from .exceptions import SocketClosed
+import socket
 
 
 class SocketWrapper:
-    def __init__(self, sock, timeout=5):
+    def __init__(self, sock: socket.socket, timeout: float = 5):
         self._sock = sock
         self.buffer = bytearray()
         self.sendall = self.send
         self._timeout = timeout
 
-    def recv(self, n_bytes):
+    def recv(self, n_bytes: int) -> bytes:
         if len(self.buffer) > 0:
             if len(self.buffer) > n_bytes:
                 data = self.buffer[:n_bytes]
@@ -20,29 +21,29 @@ class SocketWrapper:
                 return data
         return self._sock.recv(n_bytes)
 
-    def send(self, data):
+    def send(self, data: bytes) -> int:
         if self.closed():
             raise SocketClosed('socket closed')
         return self._sock.send(data)
 
-    def paste(self, data):
+    def paste(self, data: bytes):
         self.buffer = data + self.buffer
 
-    def settimeout(self, timeout):
+    def settimeout(self, timeout: float):
         self._timeout = timeout
         return self._sock.settimeout(timeout)
 
-    def setblocking(self, blocking):
+    def setblocking(self, blocking: bool):
         return self._sock.setblocking(blocking)
 
-    def getsockopt(self, *args):
+    def getsockopt(self, *args) -> int | bytes:
         return self._sock.getsockopt(*args)
 
-    def fileno(self):
+    def fileno(self) -> int:
         return self._sock.fileno()
 
     def close(self):
         return self._sock.close()
 
-    def closed(self):
+    def closed(self) -> bool:
         return self.fileno() == -1

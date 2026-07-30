@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 
 class Migration(ABC):
     @property
-    def dependencies(self):
+    def dependencies(self) -> tuple[str, ...]:
         return ()
 
     @abstractmethod

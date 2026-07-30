@@ -1,4 +1,5 @@
 from . import Handle
+from typing import Callable
 
 
 class FTDispatcher:
@@ -10,14 +11,14 @@ class FTDispatcher:
     def __init__(self) -> None:
         self.handles = []
 
-    def by_extension(self, extension: str) -> callable:
+    def by_extension(self, extension: str) -> Callable[[Callable], Callable]:
         def wrapper(func):
             self.handles.append(Handle(r'.*\.' + extension + r'$', func))
             return func
 
         return wrapper
     
-    def by_regexp(self, regexp: str) -> callable:
+    def by_regexp(self, regexp: str) -> Callable[[Callable], Callable]:
         def wrapper(func):
             self.handles.append(Handle(regexp, func))
             return func

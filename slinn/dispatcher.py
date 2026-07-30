@@ -1,8 +1,7 @@
 from __future__ import annotations
-
 import functools
-
-from . import Handle, Filter, Path, utils
+from . import Handle, Filter, Path, utils, TCPResponseChunk
+from typing import Callable
 
 
 class Dispatcher:
@@ -13,10 +12,9 @@ class Dispatcher:
     
     def __init__(self, *hosts: str) -> None:
         self.handles = []
-        self.hosts = hosts if hosts != () else ('.*', )
-        self.hosts = [host for host in hosts]
+        self.hosts = hosts if hosts else ('.*', )
 
-    def __call__(self, _filter: Filter) -> callable:
+    def __call__(self, _filter: Filter) -> Callable[[Callable], Callable]:
         def decorator(func):
             @functools.wraps(func)
             async def wrapper(*args, **kwargs):
@@ -27,19 +25,19 @@ class Dispatcher:
 
         return decorator
 
-    def check(self, host):
+    def check(self, host: str) -> bool:
         return len(self.hosts) == 0 or True in [utils.restartswith(host, _host) for _host in self.hosts]
 
-    def static(self, link: str, http_response, *args, **kwargs) -> Dispatcher:
+    def static(self, link: str, response_class: type[TCPResponseChunk], *args, **kwargs) -> Dispatcher:
         async def handler():
-            return http_response(*args, **kwargs)
+            return response_class(*args, **kwargs)
         _path = Path(link)
         self.handles.append(Handle(_path, handler, _path.args))
         return self
 
-    def sstatic(self, link: str, http_response, *args, **kwargs) -> Dispatcher:
+    def sstatic(self, link: str, response_class: type[TCPResponseChunk], *args, **kwargs) -> Dispatcher:
         def handler():
-            return http_response(*args, **kwargs)
+            return response_class(*args, **kwargs)
         _path = Path(link)
         self.handles.append(Handle(_path, handler, _path.args))
         return self
