@@ -1,10 +1,12 @@
-# WebSocketConnection
+# AsyncWebSocketConnection
 
-Класс-фасад Websocket подключения
+Класс-фасад асинхронного Websocket подключения
+
+Наследуется от `slinn.WebSocketConnection`
 
 ```Python
-class slinn.WebSocketConnection (
-    request: slinn.Request
+class slinn.AsyncWebSocketConnection (
+    request: slinn.AsyncRequest
 )
 ```
 
@@ -12,23 +14,23 @@ class slinn.WebSocketConnection (
 
 ### Методы
 
-- `handshake()` - выполняет рукопожатие;
-- `_send(opcode: WebSocketOpcodes, payload: bytes)` - выполняет операцию;
+- `async handshake()` - выполняет рукопожатие;
+- `async _send(opcode: WebSocketOpcodes, payload: bytes)` - выполняет операцию;
     1. `opcode` - код операции;
     2. `payload` - полезная нагрузка операции;
-- `send_binary(payload: bytes)` - отправляет бинарные данные;
+- `async send_binary(payload: bytes)` - отправляет бинарные данные;
     1. `payload` - данные;
-- `send_text(payload: str)` - отправляет строку;
+- `async send_text(payload: str)` - отправляет строку;
     1. `payload` - строка;
-- `ping()` - пингует клиент;
-- `pong()` - отвечает на пинг;
-- `close(reason: str = '')` - закрывает соединение;
+- `async ping()` - пингует клиент;
+- `async pong()` - отвечает на пинг;
+- `async close(reason: str = '')` - закрывает соединение;
     1. `reason` - причина закрытия;
 - `settimeout(timeout: float)` - устанавливает таймаут между фреймами:
   - `timeout` - таймаут;
-- `send(payload: bytes | str)` - отправляет бинарные или строковые данные;
+- `async send(payload: bytes | str)` - отправляет бинарные или строковые данные;
     1. `payload` - данные;
-- `read() -> slinn.WebSocketFrame` - возвращает полученный WebSocket фрейм.
+- `async read() -> slinn.WebSocketFrame` - возвращает полученный WebSocket фрейм.
 
 ### Свойства
 
@@ -63,7 +65,7 @@ class slinn.WebSocketConnection (
         <tr>
             <td><code>request</code></td>
             <td>запрос, инициирующий WebSocket подключение</td>
-            <td><code>slinn.Request</code></td>
+            <td><code>slinn.AsyncRequest</code></td>
         </tr>
     </tbody>
 </table>

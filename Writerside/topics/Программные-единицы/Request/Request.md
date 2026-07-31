@@ -1,32 +1,36 @@
-# Request
+# AsyncRequest
 
-Объект класса является представлением заголовка HTTP-запроса
+Объект класса является представлением заголовка HTTP-запроса для асинхронного сервера
+
+Наследуется от `slinn.Request`
 
 ```Python
-class slinn.Request (
+class slinn.AsyncRequest (
+    loop: asyncio.AbstractEventLoop,
     header: str,
     client_address: tuple[str, int],
-    connection: slinn.SocketWrapper,
-    server: slinn.Server,
-    htrf: typing.Optional[slinn.FTDispatcher] = None
+    connection: slinn.AsyncSocketWrapper,
+    server: slinn.AsyncServer,
+    htrf: Optional[slinn.FTDispatcher] = None
 )
 ```
 
-1. `header` - сериализованный HTTP-заголовок запроса;
-2. `client_address` - пара в кортеже IP-порт;
-3. `connection` - подключение от клиента;
-4. `server` - ссылка на сервер, который принял запрос;
-5. `htrf` - переопределенный диспатчер для типов файлов.
+1. `loop` - асинхронный цикл событий;
+2. `header` - сериализованный HTTP-заголовок запроса;
+3. `client_address` - пара в кортеже IP-порт;
+4. `connection` - подключение от клиента;
+5. `server` - ссылка на сервер, который принял запрос;
+6. `htrf` - переопределенный диспатчер для типов файлов.
 
 ### Методы
 - `__repr__() -> str` - возвращает текстовое представление запроса;
 - `__str__() -> str` - возвращает текстовое представление запроса;
-- `respond(response_class: type[TCPResponseChunk], *args, **kwargs) -> None` - отвечает на запрос;
+- `async respond(response_class: type[TCPResponseChunk], *args, **kwargs) -> None` - отвечает на запрос;
     1. `response_class` - класс ответа;
     2. `args` и `kwargs` - аргументы конструктора экземляра класса ответа;
-- `recv(n_bytes: int) -> bytes` - возвращает не более указанного количества байт, пришедших в соединение;
-    1. `n_bytes` - максимальное количество байт
-- `WebSocket(timeout: float) -> slinn.WebSocketConnection` - создает и возвращает WebSocket соединение:
+- `async recv(n_bytes: int) -> bytes` - возвращает не более указанного количества байт, пришедших в соединение;
+    1. `n_bytes` - максимальное количество байт;
+- `async WebSocket(timeout: float) -> slinn.AsyncWebSocketConnection` - создает и возвращает WebSocket соединение:
   - `timeout` - таймаут для соединения.
 
 ### Поля
@@ -171,7 +175,12 @@ class slinn.Request (
         <tr>
             <td><code>body</code></td>
             <td>тело запроса</td>
-            <td><code>RequestBody</code></td>
+            <td><code>AsyncRequestBody</code></td>
+        </tr>
+        <tr>
+            <td><code>loop</code></td>
+            <td>асинхронный цикл событий</td>
+            <td><code>asyncio.AbstractEventLoop</code></td>
         </tr>
     </tbody>
 </table>

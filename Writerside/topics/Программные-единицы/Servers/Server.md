@@ -1,9 +1,11 @@
-# Server
+# AsyncServer
 
-Объект класса принимает подключения, управляет диспатчерами, пишет логи
+Объект класса принимает асинхронные подключения, управляет диспатчерами, пишет логи
+
+Наследуется от `slinn.Server`
 
 ```Python
-class slinn.Server (
+class slinn.AsyncServer (
     *dispatchers: slinn.Dispatcher,
     smart_navigation: bool = True,
     ssl_fullchain: Optional[str] = None,
@@ -14,8 +16,8 @@ class slinn.Server (
     max_header_size: int = 8192,
     _func: Optional[Callable] = None,
     logger: Optional[logging.Logger] = None,
-    hcdp: Optional[slinn.HCDispatcher] = None,
-    htrf: Optional[slinn.FTDispatcher] = None,
+    hcdp: Optional[HCDispatcher] = None,
+    htrf: Optional[FTDispatcher] = None,
     max_requests: int = 200,
     debug: bool = True
 )
@@ -23,7 +25,7 @@ class slinn.Server (
 1. `dispatcher` - диспатчеры, которые нужно загрузить для работы сервера;
 2. `smart_navigation` - включить или выключить режим _Smart Navigation_;
 3. `ssl_fullchain` - путь до fullchain ssl сертификата;
-4. `ssl_key` - путь до private ssl сертификата;
+4. `ssl_key` - путь до закрытого ssl сертификата;
 5. `timeout` - таймаут подключений по умолчанию;
 6. `max_timeout` - максимальный таймаут подключений;
 7. `max_bytes_per_receive` - максимальное количество байт, которое примет подключение за один раз. Зависит от размера окна TCP;
@@ -40,18 +42,18 @@ class slinn.Server (
 - `reload(*dispatchers: slinn.Dispatcher) -> None` - перезагружает диспатчеры.
   1. `dispatchers` - диспатчеры, которые нужно загрузить вместо текущих;
 - `exit() -> None` - завершает работу сервера.
-- `address(port: int, domain: Optional[str] = None) -> None` - возвращает сообщение с ссылкой, по которой доступен HTTP-сервер.
+- `address(port: int, domain: str = None) -> None` - возвращает сообщение с ссылкой, по которой доступен HTTP-сервер.
   1. `port` - порт;
   2. `domain` - домен/хост.
 - `listen(address: slinn.Address) -> None` - запускает сервер.
   1. `address` - адрес, по которому будет доступен сервер.
-- `handle_request(connection: slinn.SocketWrapper, client_address: tuple[str, int], wrapped: bool = False, timeout: Optional[float] = None, max_requests: Optional[int] = None) -> None` - обрабатывает подключение от клиента.
+- `handle_request(connection: slinn.AsyncSocketWrapper, client_address: tuple[str, int], wrapped: bool = False, timeout: Optional[float] = None, max_requests: Optional[int] = None) -> None` - обрабатывает подключение от клиента.
   1. `connection` - подключение от клиента;
   2. `client_address` - пара в кортеже IP-порт;
   3. `wrapped` - не используется;
   4. `timeout` - переопределение таймаута по умолчанию;
   5. `max_requests` - переопределение максимального количества запросов на подключение по умолчанию.
-- `answer_request(client_socket: slinn.SocketWrapper, handle: slinn.Handle, request: slinn.Request, http_data: bytearray, http_header: str, max_requests: int) -> bool:` - пытается ответить на запрос выбранным хандлером, возвращает `True` если получилось
+- `answer_request(client_socket: slinn.AsyncSocketWrapper, handle: slinn.Handle, request: slinn.Request, http_data: bytearray, http_header: str, max_requests: int) -> bool:` - пытается ответить на запрос выбранным хандлером, возвращает `True` если получилось
   1. `client_socket` - подключение от клиента;
   2. `handle` - хандлер;
   3. `request` - запрос;
@@ -115,9 +117,9 @@ class slinn.Server (
         </tr>
         <tr>
             <td><code>threads</code></td>
-            <td>потоки сервера</td>
+            <td><i>не используется</i></td>
             <td><code>[]</code></td>
-            <td><code>list[slinn.utils.StoppableThread]</code></td>
+            <td><code>list</code></td>
         </tr>
         <tr>
             <td><code>timeout</code></td>
@@ -178,6 +180,12 @@ class slinn.Server (
             <td>включен ли режим <i>debug</i></td>
             <td><code>True</code></td>
             <td><code>bool</code></td>
+        </tr>
+        <tr>
+            <td><code>loop</code></td>
+            <td>асинхронный цикл событий</td>
+            <td><code>None</code></td>
+            <td><code>Optional[asyncio.AbstractEventLoop]</code></td>
         </tr>
     </tbody>
 </table>

@@ -1,18 +1,18 @@
-# WebSocketGroup
+# AsyncWebSocketGroup
 
-Класс для объединения нескольких Websocket подключений в одну группу
+Класс для объединения нескольких асинхронных Websocket подключений в одну группу
 
 ```Python
-class WebSocketGroup ()
+class AsyncWebSocketGroup ()
 ```
 
 ### Методы
 
-- `__getattr__(key: str) -> Callable[..., list[WebSocketFrame]]` - возвращаает один из методов для всех подключений группы
+- `__getattr__(key: str) -> Callable[..., Awaitable[list[WebSocketFrame]]]` - возвращаает один из методов для всех подключений группы
     1. `key` - название метода (`read`, `_send`, `send_binary`, `send_text`, `ping`, `pong`, `close`, `send`)
-- `add(connection: WebSocketConnection)` - добавляет подключение в группу
+- `add(connection: AsyncWebSocketConnection)` - добавляет подключение в группу
     1. `connection` - подключение
-- `add_subgroup(self, subgroup: WebSocketGroup)` - добавляет подгруппу в группу
+- `add_subgroup(self, subgroup: AsyncWebSocketGroup)` - добавляет подгруппу в группу
     1. `subgroup` - подгруппа
 
 ### Поля
@@ -31,13 +31,13 @@ class WebSocketGroup ()
             <td><code>connections</code></td>
             <td>список подключений</td>
             <td><code>[]</code></td>
-            <td><code>list[slinn.WebSocketConnection]</code></td>
+            <td><code>list[slinn.AsyncWebSocketConnection]</code></td>
         </tr>
         <tr>
             <td><code>subgroups</code></td>
             <td>список подгрупп</td>
             <td><code>[]</code></td>
-            <td><code>list[slinn.WebSocketGroup]</code></td>
+            <td><code>list[slinn.AsyncWebSocketGroup]</code></td>
         </tr>
     </tbody>
 </table>

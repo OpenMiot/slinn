@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Optional
 from . import WebSocketConnection, TCPResponseChunk, FTDispatcher, SocketWrapper, utils
+from typing import Optional
 import urllib.parse
 import socket
+import asyncio
 
 
 class Request:
@@ -21,11 +22,12 @@ class Request:
 
     def __init__(
         self,
+        loop: asyncio.AbstractEventLoop,
         header: str,
         client_address: tuple[str, int],
         connection: SocketWrapper,
         server: 'Server',
-        htrf: Optional[FTDispatcher] = None
+        htrf: Optional[FTDispatcher] = None,
     ):
         parse_header = lambda text: {
             pair.strip().split('=')[0]: '='.join(pair.split('=')[1:])
@@ -76,34 +78,44 @@ class Request:
         self.connection = connection
         self.server = server
         self.htrf = htrf or server.htrf or FTDispatcher()
+        self.loop = loop
         self.body = RequestBody(self)
 
     def __repr__(self) -> str:
         return f'[{self.method}] request {self.full_link} from {"" if "." in self.ip else "["}{self.ip}{"" if "." in self.ip else "]"}:{self.port} on {self.host}'
 
-    def respond(
+    async def respond(
         self,
         response_class: type[TCPResponseChunk],
         *args,
         **kwargs
     ) -> None:
-        kwargs['request'] = self
-        made = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
-        if made is None:
+        buffer = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
+        if buffer is None:
             return
-        self.connection.send(made)
+        packages = [buffer[x:x + self.server.max_bytes_per_receive] for x in
+                    range(0, len(buffer), self.server.max_bytes_per_receive)]
+        i = 0
+        while i < len(packages):
+            try:
+                await self.connection.send(packages[i])
+                i += 1
+            except TimeoutError:
+                continue
 
-    def recv(self, n_bytes: int) -> bytes:
-        return self.connection.recv(n_bytes)
+    async def recv(self, n_bytes: int) -> bytes:
+        return await self.connection.recv(n_bytes)
 
-    def WebSocket(self, timeout: float) -> WebSocketConnection:
+    async def WebSocket(self, timeout: float) -> WebSocketConnection:
         conn = WebSocketConnection(self)
-        conn.handshake()
+        await conn.handshake()
         conn.settimeout(timeout)
         return conn
 
 
 class RequestBody:
+    _request: Request
+
     def __init__(self, request: Request):
         self._request = request
         self._received = 0
@@ -120,12 +132,12 @@ class RequestBody:
             return 0
         return self.size() - self._received
 
-    def recv(self, n_bytes: int) -> bytes:
+    async def recv(self, n_bytes: int) -> bytes:
         if self.end():
             self._pending = False
             return b''
         try:
-            data = self._request.recv(n_bytes)
+            data = await self._request.recv(n_bytes)
             if len(data) + self._received >= self.size():
                 return data[:self.size() - self._received]
             return data
@@ -133,59 +145,59 @@ class RequestBody:
             self._pending = False
             return b''
 
-    def receive(self) -> bytes:
-        return self.recv(min(self._request.server.max_bytes_per_receive, self.until_end()))
+    async def receive(self) -> bytes:
+        return await self.recv(min(self._request.server.max_bytes_per_receive, self.until_end()))
 
-    def getline(self) -> bytes:
+    async def getline(self) -> bytes:
         line = bytearray()
-        while b := self.receive():
+        while b := await self.receive():
             if b'\r\n' in b:
-                lines = b.split(b'\r\n')
+                lines = b.split(b'\r\n', 1)
                 line += lines[0]
                 self._request.connection.paste(b[len(lines[0]) + 2:])
                 break
             line += b
         return line
 
-    def get(self) -> bytes:
+    async def get(self) -> bytes:
         data = bytearray()
-        while b := self.receive():
+        while b := await self.receive():
             data += b
         self._received = len(data)
         return bytes(data)
 
-    def form(self) -> dict:
+    async def form(self) -> dict:
         if self._request.content_type[0] == 'application/x-www-form-urlencoded':
             return {
                 key: urllib.parse.unquote_plus(val)
-                for key, val in Request.get_args((self.getline()).decode()).items()
+                for key, val in Request.get_args((await self.getline()).decode()).items()
             }
         return {}
 
-    def skip(self) -> None:
+    async def skip(self):
         while not self.end():
-            self.receive()
+            await self.receive()
 
     def files_boundary(self) -> Optional[str]:
         return self._request.content_type[1].get('boundary', None)
 
-    def next_file_header(self) -> dict:
-        while line := self.getline():
+    async def next_file_header(self) -> dict:
+        while line := await self.getline():
             if line == b'--' + self.files_boundary().encode():
                 break
         header = []
-        while line := self.getline():
+        while line := await self.getline():
             header.append(line)
         return Request.parse_http_header(b'\r\n'.join(header).decode())
 
-    def next_file_body(self) -> bytes:
+    async def next_file_body(self) -> bytes:
         data = bytearray()
-        while line := self.getline():
+        while line := await self.getline():
             if line == b'--' + self.files_boundary().encode():
                 self._request.connection.paste(b'--' + self.files_boundary().encode() + b'\r\n')
                 break
             if line == b'--' + self.files_boundary().encode() + b'--':
                 self._pending = False
                 break
-            data += line
+            data += line + b'\r\n'
         return bytes(data)

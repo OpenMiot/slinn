@@ -1,28 +1,31 @@
-# SSLSocketWrapper
+# AsyncSSLSocketWrapper
 
-Класс-адаптер для SSL-сокета
+Класс-адаптер для асинхронного SSL-сокета
 
-Наследуется от `slinn.SocketWrapper`
+Наследуется от `slinn.AsyncSocketWrapper`
 
 ```Python
-class slinn.SSLSocketWrapper(
+class slinn.AsyncSSLSocketWrapper(
     sock: socket.socket,
     ssl_context: ssl.SSLContext,
+    loop: asyncio.AbstractEventLoop,
     timeout: float = 5
 )
 ```
 
 1. `sock` - сокет;
 2. `ssl_context` - ssl-контекст;
-3. `timeout` - таймаут подключения сокета в секундах.
+3. `loop` асинхронный цикл событий;
+4. `timeout` - таймаут подключения сокета в секундах.
 
 ### Методы
 
-- `recv(n_bytes: int) -> bytes` - получает не более указанного количества байт:
+- `async do_handshake()` - выполнить ssl-рукопожатие;
+- `async recv(n_bytes: int) -> bytes` - получает не более указанного количества байт:
     1. `n_bytes` - максимальное количество байт;
-- `send(data: bytes) -> int` - отправляет данные в сокет:
+- `async send(data: bytes) -> int` - отправляет данные в сокет:
     1. `data` - данные;
-- `sendall(data: bytes) -> int` - отправляет данные в сокет:
+- `async sendall(data: bytes) -> int` - отправляет данные в сокет:
     1. `data` - данные;
 - `paste(data: bytes)` - возвращает данные в буфер:
     1. `data` - данные;
@@ -52,6 +55,12 @@ class slinn.SSLSocketWrapper(
             <td>сокет</td>
             <td></td>
             <td><code>socket.socket</code></td>
+        </tr>
+        <tr>
+            <td><code>loop</code></td>
+            <td>асинхронный цикл событий</td>
+            <td></td>
+            <td><code>asyncio.AbstractEventLoop</code></td>
         </tr>
         <tr>
             <td><code>ssl_context</code></td>

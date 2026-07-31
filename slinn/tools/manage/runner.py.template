@@ -1,4 +1,4 @@
-from slinn import Server, AsyncServer, Address
+from slinn import Server, Address
 from slinn.tools.manage.misc import get_dir_checksum
 from htrf import htrf
 from hcdp import hcdp
@@ -8,7 +8,7 @@ import zipimport
 <% imports %>
 
 
-def reloader(server):
+async def reloader(server):
     from slinn.tools.manage.misc import get_dir_checksum
     import importlib, traceback
     global checksum
@@ -16,7 +16,7 @@ def reloader(server):
         if checksum != get_dir_checksum('.'):
             checksum = get_dir_checksum('.')
             <% reloads %>
-            server.reload(<% server_reload %>)
+            await server.reload(<% server_reload %>)
     except Exception:
         print('During handling request, an exception has occured:')
         traceback.print_exc()
@@ -26,7 +26,7 @@ logging.basicConfig(filename=f'{cfg["name"]}.journal.log', level=logging.INFO)
 
 checksum = get_dir_checksum('.')
 
-<% if async %>asyncio.run(<% endif %>(<% server_class %>(
+asyncio.run((Server(
     <% dps %>,
     smart_navigation = <% smart_navigation %>,
     ssl_fullchain = <% ssl_fullchain %>,
@@ -39,4 +39,4 @@ checksum = get_dir_checksum('.')
     htrf = htrf, 
     hcdp = hcdp,
     debug = True if '<% debug %>' == 'true' else False
-)).listen(Address(<% port %>, '<% host %>'))<% if async %>)<% endif %>
+)).listen(Address(<% port %>, '<% host %>')))

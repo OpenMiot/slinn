@@ -1,7 +1,5 @@
 {
     "name": "Slinn",
-    "async": true,
-    "server_class": "AsyncServer",
 
     "host": "localhost",
     "port": 8080,
@@ -13,8 +11,6 @@
         "key": false
     },
     "apps": ["firstrun"],
-
-    "smart_navigation": true,
 
     "timeout": 0.5,
     "max_timeout": 60,

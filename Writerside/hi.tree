@@ -18,15 +18,10 @@
         <toc-element topic="Обработка-исключений.md"/>
     </toc-element>
     <toc-element toc-title="Программные единицы">
-        <toc-element toc-title="Серверы">
-            <toc-element topic="Server.md"/>
-            <toc-element topic="AsyncServer.md"/>
-        </toc-element>
+        <toc-element topic="Server.md"/>
         <toc-element toc-title="Запросы">
             <toc-element topic="Request.md"/>
             <toc-element topic="RequestBody.md"/>
-            <toc-element topic="AsyncRequest.md"/>
-            <toc-element topic="AsyncRequestBody.md"/>
         </toc-element>
         <toc-element toc-title="Маршрутизаторы">
             <toc-element topic="Dispatcher.md"/>
@@ -70,8 +65,6 @@
             <toc-element topic="WebsocketGroup.md"/>
             <toc-element topic="WebsocketHandshake.md"/>
             <toc-element topic="WebsocketOpcodes.md"/>
-            <toc-element topic="AsyncWebsocketConnection.md"/>
-            <toc-element topic="AsyncWebsocketGroup.md"/>
             <toc-element topic="Пример-WebSocket.md"/>
         </toc-element>
         <toc-element toc-title="Server Side Events">
@@ -82,8 +75,6 @@
         <toc-element toc-title="Адаптеры для сокетов">
             <toc-element topic="SocketWrapper.md"/>
             <toc-element topic="SSLSocketWrapper.md"/>
-            <toc-element topic="AsyncSocketWrapper.md"/>
-            <toc-element topic="AsyncSSLSocketWrapper.md"/>
         </toc-element>
         <toc-element topic="Исключения-и-предупреждения.md"/>
         <toc-element topic="Опциональная-передача-аргументов.md"/>

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, HttpResponseChunk, utils
+from . import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake, HttpResponseChunk
 from .exceptions import NotAWebSocketConnection
 
 
@@ -7,62 +7,64 @@ class WebSocketConnection:
     def __init__(self, request: 'Request'):
         self.request = request
 
-    def handshake(self):
+    async def handshake(self):
         if 'Sec-WebSocket-Key' not in self.request.headers:
             raise NotAWebSocketConnection()
-        self.request.respond(WebSocketHandshake, self.request.headers['Sec-WebSocket-Key'])
+        await self.request.respond(WebSocketHandshake, self.request.headers['Sec-WebSocket-Key'])
 
-    def _send(self, opcode: WebSocketOpcodes, payload: bytes):
+    async def _send(self, opcode: WebSocketOpcodes, payload: bytes):
         frame = WebSocketFrame(True, opcode, False, payload)
-        self.request.respond(HttpResponseChunk, WebSocketFrame.pack(frame))
+        await self.request.respond(HttpResponseChunk, WebSocketFrame.pack(frame))
 
-    def send_binary(self, payload: bytes):
-        self._send(WebSocketOpcodes.BINARY, payload)
+    async def send_binary(self, payload: bytes):
+        await self._send(WebSocketOpcodes.BINARY, payload)
 
-    def send_text(self, payload: str):
-        self._send(WebSocketOpcodes.TEXT, payload.encode())
+    async def send_text(self, payload: str):
+        await self._send(WebSocketOpcodes.TEXT, payload.encode())
 
-    def ping(self):
-        self._send(WebSocketOpcodes.PING, b'')
+    async def ping(self):
+        await self._send(WebSocketOpcodes.PING, b'')
 
-    def pong(self):
-        self._send(WebSocketOpcodes.PONG, b'')
+    async def pong(self):
+        await self._send(WebSocketOpcodes.PONG, b'')
 
-    def close(self, reason: str = ''):
-        self._send(WebSocketOpcodes.CLOSE, reason.encode())
-        if not self.request.connection.closed():
-            self.request.connection.close()
+    async def close(self, reason: str = ''):
+        await self._send(WebSocketOpcodes.CLOSE, reason.encode())
 
     def settimeout(self, timeout: float):
         self.request.connection.settimeout(timeout)
 
-    def send(self, payload: bytes | str):
+    @property
+    def closed(self) -> bool:
+        return self.request.connection.closed()
+
+    async def send(self, payload: bytes | str):
         if isinstance(payload, bytes):
-            self.send_binary(payload)
+            await self.send_binary(payload)
         elif isinstance(payload, str):
-            self.send_text(payload)
+            await self.send_text(payload)
         else:
             raise TypeError()
 
-    def read(self) -> WebSocketFrame:
-        data = bytearray(self.request.recv(2))
+    async def read(self) -> WebSocketFrame:
+        data = bytearray(await self.request.recv(2))
         payload_len = data[1] & 127
         if payload_len == 126:
-            data += self.request.recv(2)
+            data += await self.request.recv(2)
             payload_len = int.from_bytes(data[2:4])
         elif payload_len == 127:
-            data += self.request.recv(4)
+            data += await self.request.recv(4)
             payload_len = int.from_bytes(data[2:6])
         if data[1] & 128:
-            data += self.request.recv(4)
+            data += await self.request.recv(4)
         if payload_len < 126:
-            data += self.request.recv(payload_len)
+            data += await self.request.recv(payload_len)
         elif 125 < payload_len < 65536:
-            data += self.request.recv(payload_len)
+            data += await self.request.recv(payload_len)
         else:
-            data += self.request.recv(payload_len)
+            data += await self.request.recv(payload_len)
         frame = WebSocketFrame.unpack(data)
         if frame.opcode == WebSocketOpcodes.CLOSE:
-            if not self.request.connection.closed():
+            if not self.request.closed():
                 self.request.connection.close()
         return frame
