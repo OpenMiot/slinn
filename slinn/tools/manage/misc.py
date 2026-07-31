@@ -249,7 +249,7 @@ load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip,
 ]
 
 get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
-  f'{app}.dp' for app in apps if not app_config(app)['debug'] or debug
+  f'{app}.router' for app in apps if not app_config(app)['debug'] or debug
 ] + list(itertools.chain.from_iterable([
     [
         f'{key}.{dispatcher}' for dispatcher in plugin.get('plugin', {}).get('dispatchers', [])

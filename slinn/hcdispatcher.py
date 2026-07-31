@@ -1,5 +1,5 @@
-from .exceptions import HandlerNotFound
-from . import Handle, AnyFilter
+from .exceptions import EndpointNotFound
+from . import Endpoint, AnyFilter
 from typing import Callable
 
 
@@ -12,14 +12,14 @@ class HCDispatcher:
     def __init__(self) -> None:
         self.functions = {}
 
-    def __getitem__(self, key: int) -> Handle:
+    def __getitem__(self, key: int) -> Endpoint:
         if str(key) in self.functions.keys():
-            return Handle(AnyFilter, self.functions[str(key)])
-        raise HandlerNotFound(f'HTTP-code {key} does not exist')
+            return Endpoint(AnyFilter, self.functions[str(key)])
+        raise EndpointNotFound(f'HTTP-code {key} does not exist')
 
     def __call__(self, code: int) -> Callable[[Callable], Callable]:
         if code < 99 or code > 599:
-            raise HandlerNotFound(f'HTTP-code {code} does not correct')
+            raise EndpointNotFound(f'HTTP-code {code} does not correct')
 
         def wrapper(func):
             self.functions[str(code)] = func

@@ -5,7 +5,7 @@ import warnings
 from datetime import datetime, timedelta
 from string import ascii_uppercase
 from .address import Address
-from .handle import Handle
+from .endpoint import Endpoint
 from .i_middleware import IMiddleware
 from .preprocessor import Preprocessor
 from .tcp_response_chunk import TCPResponseChunk
@@ -27,8 +27,7 @@ from .ssl_socket_wrapper import SSLSocketWrapper
 from .request import Request, RequestBody
 from .i_path import IPath
 from .path import Path
-from .dispatcher import Dispatcher
-from .api_dispatcher import ApiDispatcher
+from .router import Router
 from .http_response import HttpResponse
 from .http_redirect import HttpRedirect
 from .http_get_redirect import HttpGETRedirect
@@ -46,7 +45,7 @@ from .template_protocol import TemplateProtocol
 from . import utils
 
 
-__PD, __PI = datetime(2026, 8, 1), 1
+__PD, __PI = datetime(2026, 8, 1), 2
 
 VERSION = {
     'name': 'Slinn',
@@ -56,7 +55,7 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 1
+        'revision': 2
     },
     'version_id': __PD.strftime('%d%m%y') + ascii_uppercase[__PI - 1],
     'dies_at': __PD + timedelta(days=120),
