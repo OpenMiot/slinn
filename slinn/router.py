@@ -22,13 +22,13 @@ class Router:
         self.delete = functools.partial(self._register_handler_decorator, methods=('DELETE',))
         self.options = functools.partial(self._register_handler_decorator, methods=('OPTIONS',))
 
-    def __call__(self, _filter: Filter) -> Callable[[Callable], Callable]:
+    def __call__(self, request_filter: Filter) -> Callable[[Callable], Callable]:
         def decorator(func):
             @functools.wraps(func)
             async def wrapper(*args, **kwargs):
                 return await func(*args, **kwargs)
 
-            self.handles.append(Endpoint(_filter, wrapper, _filter.args))
+            self.handles.append(Endpoint(request_filter, wrapper, request_filter.args))
             return wrapper
 
         return decorator

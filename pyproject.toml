@@ -4,15 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinn"
-version = "2.3.9"
+version = "3.0.0"
 description = "An HTTP server framework"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.15"
+dependencies = [
+    "tomlkit==0.15.1",
+]
 authors = [
     { name = "Miot Project", email = "openmiot@gmail.com"},
     { name = "Mark Radin", email = "mrybs2@gmail.com" }
 ]
 urls = { Homepage = "https://wiki.miot.su/slinn" }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
 
 [project.scripts]
 slinn-admin = "slinn.scripts.slinn_admin:main"

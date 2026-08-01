@@ -13,7 +13,7 @@ class PackageType(enum.Enum):
     FILESYSTEM = 'filesystem'
 
 
-class Storage:
+class StorageApi:
     def __init__(
         self,
         root: str = '',

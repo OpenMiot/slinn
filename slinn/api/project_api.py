@@ -1,41 +1,19 @@
-from . import slinn_root, Preprocessor, Storage
-from .tools.manage.misc import (
+from slinn import root, Preprocessor
+from slinn.api.storage_api import StorageApi
+from slinn.tools.manage.misc import (
     replace_all, add_quotes_to_list, packages
 )
-from .tools.manage.defaults import APP_CONFIG
+from slinn.tools.manage.defaults import APP_CONFIG
 from typing import Optional
 import os
-import json
+import tomlkit
 import shutil
 import sys
 import slinn
 
+
+slinn_root = StorageApi(root)
 pp = Preprocessor()
-
-_DEFAULT_PROJECT_CONFIG = {
-    'name': "Slinn",
-    'async': True,
-    'server_class': "AsyncServer",
-
-    'host': "localhost",
-    'port': 8080,
-
-    'debug': True,
-
-    'ssl': {
-        "fullchain": False,
-        "key": False
-    },
-    'apps': [],
-
-    'smart_navigation': True,
-
-    'timeout': 0.5,
-    'max_timeout': 60,
-    'max_bytes_per_receive': 65535,
-    'max_header_size': 8192
-}
-
 
 
 class SlinnApiException(Exception): ...
@@ -54,9 +32,8 @@ class AppNotExistException(SlinnApiException):
 class ProjectAPI:
     @staticmethod
     def get_config() -> dict:
-        with open('project.json', 'r') as project:
-            project_json = _DEFAULT_PROJECT_CONFIG.copy()
-            project_json.update(json.load(project))
+        with open('slinn.toml', 'rb') as project:
+            project_json = tomlkit.load(project)
             if 'apps' not in project_json.keys():
                 project_json['apps'] = []
             return project_json
@@ -69,8 +46,8 @@ class ProjectAPI:
             del updates['apps']
         project_json['apps'] = [app for app in project_json.get('apps', []) if os.path.isdir(app)]
         project_json.update(updates)
-        with open('project.json', 'w') as project:
-            json.dump(project_json, project, indent=4)
+        #with open('project.json', 'w') as project:
+        #    json.dump(project_json, project, indent=4)
 
     @staticmethod
     def create_app(name: str, hosts: tuple[str, ...] = (), *, init: bool = True) -> None:

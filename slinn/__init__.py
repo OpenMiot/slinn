@@ -1,51 +1,54 @@
+from datetime import datetime, timedelta
+from functools import partial
+from slinn import utils
 import os
 import sys
 import inspect
 import warnings
-from datetime import datetime, timedelta
-from string import ascii_uppercase
-from .address import Address
-from .endpoint import Endpoint
-from .i_middleware import IMiddleware
-from .preprocessor import Preprocessor
-from .tcp_response_chunk import TCPResponseChunk
-from .http_response_chunk import HttpResponseChunk
-from .http_response_header import CookieSameSite
-from .http_response_header import HttpResponseHeader
-from .websocket_opcodes import WebSocketOpcodes
-from .websocket_handshake import WebSocketHandshake
-from .websocket_frame import WebSocketFrame
-from .websocket_connection import WebSocketConnection
-from .websocket_group import WebSocketGroup
-from .filter import Filter
-from .link_filter import LinkFilter
-from .any_filter import AnyFilter
-from .hcdispatcher import HCDispatcher
-from .ftdispatcher import FTDispatcher
-from .socket_wrapper import SocketWrapper
-from .ssl_socket_wrapper import SSLSocketWrapper
-from .request import Request, RequestBody
-from .i_path import IPath
-from .path import Path
-from .router import Router
-from .http_response import HttpResponse
-from .http_redirect import HttpRedirect
-from .http_get_redirect import HttpGETRedirect
-from .empty_http_response import EmptyHttpResponse
-from .http_render import HttpRender
-from .http_api_response import HttpAPIResponse
-from .http_json_response import HttpJSONResponse
-from .http_json_api_response import HttpJSONAPIResponse
-from .sse_header import SSEHeader
-from .sse_event import SSEEvent
-from .server import Server
-from .storage import Storage, StorageIO
-from .migration import Migration
-from .template_protocol import TemplateProtocol
-from . import utils
 
 
-__PD, __PI = datetime(2026, 8, 1), 2
+__getattr__ = partial(utils.lazy_exporter, __name__, {
+    'Endpoint': 'endpoint',
+    'IMiddleware': 'i_middleware',
+    'Preprocessor': 'preprocessor',
+    'TCPResponseChunk': 'tcp_response_chunk',
+    'HttpResponseChunk': 'http_response_chunk',
+    'CookieSameSite': 'http_response_header',
+    'HttpResponseHeader': 'http_response_header',
+    'WebSocketOpcodes': 'websocket_opcodes',
+    'WebSocketHandshake': 'websocket_handshake',
+    'WebSocketFrame': 'websocket_frame',
+    'WebSocketConnection': 'websocket_connection',
+    'WebSocketGroup': 'websocket_group',
+    'Filter': 'filter',
+    'LinkFilter': 'link_filter',
+    'AnyFilter': 'any_filter',
+    'HCDispatcher': 'hcdispatcher',
+    'FTDispatcher': 'ftdispatcher',
+    'SocketWrapper': 'socket_wrapper',
+    'SSLSocketWrapper': 'ssl_socket_wrapper',
+    'Request': 'request',
+    'RequestBody': 'request',
+    'IPath': 'i_path',
+    'Path': 'path',
+    'Router': 'router',
+    'HttpResponse': 'http_response',
+    'HttpRedirect': 'http_redirect',
+    'HttpGETRedirect': 'http_get_redirect',
+    'EmptyHttpResponse': 'empty_http_response',
+    'HttpRender': 'http_render',
+    'HttpAPIResponse': 'http_api_response',
+    'HttpJSONResponse': 'http_json_response',
+    'HttpJSONAPIResponse': 'http_json_api_response',
+    'SSEHeader': 'sse_header',
+    'SSEEvent': 'sse_event',
+    'Server': 'server',
+    'Migration': 'migration',
+    'TemplateProtocol': 'template_protocol',
+})
+
+
+__PD = datetime(2026, 8, 2)
 
 VERSION = {
     'name': 'Slinn',
@@ -55,23 +58,17 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 2
+        'revision': 3
     },
-    'version_id': __PD.strftime('%d%m%y') + ascii_uppercase[__PI - 1],
-    'dies_at': __PD + timedelta(days=120),
-    'is_snapshot': False,
-    'may_incompatible': False
+    'dies_at': __PD + timedelta(days=180),
+    'is_snapshot': True,
+    'may_incompatible': True
 }
 make_version = lambda ver: f'{ver['major']}.{ver['minor']}.{ver['patch']}' + (
     f'{ver['type'][0]}{ver['revision']}' if ver['revision'] else '')
 version = f'{VERSION['name']} {VERSION['codename']} {make_version(VERSION['version'])}'
 
 root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
-slinn_root = Storage(root)
-
-
-from .project_api import ProjectAPI
-from .slinn_app_api import SlinnAppAPI
 
 
 warnings.simplefilter('always', DeprecationWarning)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Awaitable, Optional
-from . import Request, Address, HCDispatcher, FTDispatcher, utils, SSLSocketWrapper, SocketWrapper, exceptions
+from slinn import Request, Address, HCDispatcher, FTDispatcher, utils, SSLSocketWrapper, SocketWrapper, exceptions
 from .tools.debugger import ExceptionResponse
 import asyncio
 import socket
@@ -40,7 +40,6 @@ class Server:
         self.ssl = ssl_fullchain is not None and ssl_key is not None
         self.ssl_cert, self.ssl_key = ssl_fullchain, ssl_key
         self.ssl_context = None
-        self.threads = []
         self.timeout = timeout
         self.max_timeout = max_timeout
         self.max_requests = max_requests
@@ -53,14 +52,9 @@ class Server:
         self.htrf = htrf or FTDispatcher()
         self.debug = debug
         self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.server_socket = None
 
     async def reload(self, *dispatchers: 'Dispatcher') -> None:
-        for thread in self.threads:
-            thread.stop()
-            try:
-                thread.join()
-            except RuntimeError:
-                pass
         self.dispatchers = dispatchers
         self.logger.info('Server has reloaded')
 
@@ -77,7 +71,6 @@ class Server:
                 f'{(":" + str(port) if port != 443 else "") if self.ssl else (":" + str(port) if port != 80 else "")}/')
 
     async def listen(self, address: Address):
-        self.server_socket = None
         self.loop = asyncio.get_event_loop()
         if ':' in address.host:
             self.server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)

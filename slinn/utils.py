@@ -1,11 +1,11 @@
+from abc import ABCMeta
+from typing import Any
 import warnings
 import inspect
 import json
 import re
 import threading
-from abc import ABCMeta
-from typing import Any
-
+import importlib
 
 optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
 rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
@@ -122,3 +122,10 @@ def rename_class(cls, name):
     new.__qualname__ = new.__qualname__.replace(cls.__name__, name)
     new.__name__ = name
     return new
+
+
+def lazy_exporter(module, submodules, name):
+    if name not in submodules:
+        raise AttributeError(f"module {__name__} has no attribute {name}")
+    mod = importlib.import_module(f"{module}.{submodules[name]}")
+    return getattr(mod, name)

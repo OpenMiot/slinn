@@ -2,10 +2,12 @@ from __future__ import annotations
 from typing import Callable, Iterable, Generator, Optional
 from .colorcodes import *
 from .defaults import APP_CONFIG
-from slinn import slinn_root, Migration, TemplateProtocol
+from slinn import Migration, TemplateProtocol, root
+from slinn.api.storage_api import StorageApi
 import os
 import base64
 import hashlib
+import tomlkit
 import json
 import glob
 import importlib.util
@@ -15,6 +17,8 @@ import zipfile
 import fnmatch
 import itertools
 
+
+slinn_root = StorageApi(root)
 
 def splits(string: str, delimiters=(' ', '\n'), quotes=tuple()):
     result = ['']
@@ -108,10 +112,10 @@ def get_dir_checksum(dir):
 
 
 def config():
-    with slinn_root('/defaults/project/project.json', 'r') as f:
-        cfg = json.load(f)
-    with open('project.json') as f:
-        cfg.update(json.load(f))
+    with slinn_root('/defaults/project/slinn.toml', 'r') as f:
+        cfg = tomlkit.load(f)
+    with open('slinn.toml') as f:
+        cfg.update(tomlkit.load(f))
     return cfg
 
 
@@ -128,11 +132,11 @@ def packages():
 def app_config(app):
     try:
         cfg = APP_CONFIG.copy()
-        with open(f'{app}/config.json') as f:
-            cfg.update(json.load(f))
+        with open(f'{app}/config.toml', 'rb') as f:
+            cfg.update(tomlkit.load(f))
         return cfg
     except FileNotFoundError:
-        print(f'{RED}{app}/config.json file not found{RESET}')
+        print(f'{RED}{app}/config.toml file not found{RESET}')
         exit()
 
 
@@ -248,11 +252,11 @@ load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip,
    f'import {app}' for app in apps if not app_config(app)['debug'] or debug
 ]
 
-get_dispatchers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
+get_routers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
   f'{app}.router' for app in apps if not app_config(app)['debug'] or debug
 ] + list(itertools.chain.from_iterable([
     [
-        f'{key}.{dispatcher}' for dispatcher in plugin.get('plugin', {}).get('dispatchers', [])
+        f'{key}.{router}' for router in plugin.get('plugin', {}).get('routers', [])
     ]
     for key, plugin in (plugins_zip | plugins_dir).items()
 ]))

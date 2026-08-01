@@ -209,7 +209,7 @@ def _template_command(args):
     )
     try:
         ProjectAPI.create_app(app_name, init=False)
-    except slinn.project_api.AppExistsException:
+    except slinn.api.project_api.AppExistsException:
         print(f'{BLUE}The app named {args["app_name"]} exists{RESET}')
         return
     template.install(
