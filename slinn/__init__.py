@@ -58,7 +58,7 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 3
+        'revision': 4
     },
     'dies_at': __PD + timedelta(days=180),
     'is_snapshot': True,

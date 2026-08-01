@@ -1,4 +1,4 @@
-from typing import Protocol, Any, Optional
+from typing import Protocol, Any, Optional, Iterable
 from slinn.net import RouterProtocol, RequestProtocol, PipeProtocol
 from slinn import Address
 import logging
@@ -9,12 +9,13 @@ class ServerProtocol(Protocol):
     def __init__(
         self,
         address: Address,
-        protocol_config: dict[str, Any],
+        protocols_config: dict[str, dict[str, Any]],
+        routers: Iterable[RouterProtocol],
         logger: logging.Logger,
         ssl_context: Optional[ssl.SSLContext]
     ): ...
 
-    async def reload(self, *routers:  RouterProtocol) -> None: ...
+    async def reload(self, *routers: RouterProtocol) -> None: ...
 
     async def listen(self) -> None: ...
 
@@ -22,7 +23,7 @@ class ServerProtocol(Protocol):
         self,
         pipe: PipeProtocol,
         client_address: Address,
-        data: dict[Any, Any]
+        args: dict[Any, Any]
     ) -> None: ...
 
     async def shutdown(self) -> None: ...

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from . import utils
+from slinn import utils
 
 
 class Filter:
@@ -15,7 +15,7 @@ class Filter:
     def check(self, request: 'Request') -> bool:
         return utils.rematcheswith(request.link, self.filter) and request.method.upper() in self.methods
 
-    def size(self, request: 'Request') -> int:
+    async def size(self, request: 'Request') -> int:
         a = utils.min_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
         b = utils.Bmin_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
         if not self.check(request):

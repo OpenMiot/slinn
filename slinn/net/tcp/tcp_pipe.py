@@ -8,7 +8,7 @@ import socket
 import ssl
 
 
-class TCPPipe(PipeProtocol):
+class TcpPipe(PipeProtocol):
     class _Protocol(asyncio.Protocol):
         def __init__(self, on_data_received):
             self.on_data_received = on_data_received
@@ -55,7 +55,7 @@ class TCPPipe(PipeProtocol):
             self._read_event.set()
 
         def _protocol_factory():
-            return TCPPipe._Protocol(_data_received_callback)
+            return TcpPipe._Protocol(_data_received_callback)
 
         self._transport, self._protocol = await self.loop.create_connection(_protocol_factory, sock=self._sock)
         if self.ssl_context:
@@ -77,8 +77,7 @@ class TCPPipe(PipeProtocol):
             try:
                 await asyncio.wait_for(self._read_event.wait(), timeout=self._timeout)
             except TimeoutError:
-                self.close()
-                raise SocketClosed('socket closed')
+                raise
 
         if not self.buffer:
             self.close()
@@ -111,9 +110,9 @@ class TCPPipe(PipeProtocol):
     def listen(self, backlog: int = socket.SOMAXCONN) -> None:
         self._sock.listen(backlog)
 
-    async def accept(self) -> tuple[TCPPipe, Address]:
+    async def accept(self) -> tuple[TcpPipe, Address]:
         client_sock, client_address = await self.loop.sock_accept(self._sock)
-        client_pipe = TCPPipe(
+        client_pipe = TcpPipe(
             self.loop,
             fileno=client_sock.detach(),
             timeout=self._timeout,

@@ -1,6 +1,6 @@
 from typing import Iterable, Any, Optional
 from slinn.net.address import Address
-from slinn.net.tcp import TCPPipe, TCPRouterProtocol
+from slinn.net.tcp import TcpPipe, TcpRouterProtocol
 from slinn.exceptions import SocketClosed
 from slinn.utils import optional
 import logging
@@ -10,34 +10,34 @@ import ssl
 import inspect
 
 
-class TCPServer:
+class TcpServer:
     def __init__(
         self,
         address: Address,
-        protocol_config: dict[str, Any],
-        routers: Iterable[TCPRouterProtocol],
+        protocols_config: dict[str, Any],
+        routers: Iterable[TcpRouterProtocol],
         logger: logging.Logger,
         ssl_context: Optional[ssl.SSLContext] = None
     ) -> None:
         self.address: Address = address
-        self.protocol_config: dict[str, Any] = protocol_config
-        self.routers: Iterable[TCPRouterProtocol] = routers
+        self.tcp_config: dict[str, Any] = protocols_config.get('tcp', {})
+        self.routers: Iterable[TcpRouterProtocol] = routers
         self.logger: logging.Logger = logger
         self.ssl_context: Optional[ssl.SSLContext] = ssl_context
 
-        self.server_pipe: Optional[TCPPipe] = None
+        self.server_pipe: Optional[TcpPipe] = None
 
-        self._timeout = protocol_config.get('timeout', 0.5)
-        self._max_timeout = protocol_config.get('_max_timeout', 60)
-        self._max_bytes_per_receive = protocol_config.get('_max_bytes_per_receive', 65535)
+        self._timeout = self.tcp_config.get('timeout', 0.5)
+        self._max_timeout = self.tcp_config.get('_max_timeout', 60)
+        self._max_bytes_per_receive = self.tcp_config.get('_max_bytes_per_receive', 65535)
 
-    async def reload(self, *routers: TCPRouterProtocol) -> None:
+    async def reload(self, *routers: TcpRouterProtocol) -> None:
         self.routers = routers
         self.logger.info(f'Server {self.address.host}:{self.address.port} has reloaded')
 
     async def listen(self) -> None:
         loop = asyncio.get_running_loop()
-        self.server_pipe = TCPPipe(
+        self.server_pipe = TcpPipe(
             loop,
             family = self.address.family,
             type = socket.SOCK_STREAM,
@@ -69,11 +69,11 @@ class TCPServer:
 
     async def handle_pipe(
         self,
-        client_pipe: TCPPipe,
+        client_pipe: TcpPipe,
         client_address: Address,
-        data: dict[Any, Any]
+        args: dict[Any, Any]
     ) -> None:
-        client_pipe.set_timeout(min(self._max_timeout, data.get('timeout', self._timeout)))
+        client_pipe.set_timeout(min(self._max_timeout, args.get('timeout', self._timeout)))
         self.logger.info(f'New TCP connection from {client_address.host}:{client_address.port} established')
         while not client_pipe.closed:
             try:
@@ -83,8 +83,8 @@ class TCPServer:
                 sizes = [
                     await optional(
                         endpoint.filter.size,
-                        client_pipe=client_pipe,
-                        client_address=client_address
+                        client_pipe = client_pipe,
+                        client_address = client_address
                     )
                     for endpoint in endpoints
                 ]
@@ -99,7 +99,7 @@ class TCPServer:
                     endpoint.function,
                     client_pipe = client_pipe,
                     client_address = client_address,
-                    **data
+                    **args
                 )
                 if inspect.isasyncgenfunction(endpoint.function):
                     async for response in coro:

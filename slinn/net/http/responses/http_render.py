@@ -1,5 +1,6 @@
-from slinn.http_response import HttpResponse
-from slinn import utils, FTDispatcher, Request
+from slinn.net.http.responses.http_response import HttpResponse
+from slinn.net.http import HttpRequest
+from slinn import utils, FTDispatcher
 from typing import Optional
 
 
@@ -16,7 +17,7 @@ class HttpRender(HttpResponse):
         status: str = '200 OK',
         ppdata: Optional[dict] = None,
         storage = open,
-        request: Optional[Request] = None
+        request: Optional[HttpRequest] = None
     ):
         self.file_path = file_path
         self.data = data if data is not None else []

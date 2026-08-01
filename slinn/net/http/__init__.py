@@ -3,10 +3,10 @@ from functools import partial
 
 
 __getattr__ = partial(lazy_exporter, __name__, {
-    'HTTPClient': 'http_client',
-    'HTTPFilter': 'http_filter',
-    'HTTPRequest': 'http_request',
-    'HTTPResponse': 'http_response',
-    'HTTPRouter': 'http_router',
-    'HTTPServer': 'http_server',
+    'HttpClient': 'http_client',
+    'HttpFilter': 'http_filter',
+    'HttpRequest': 'http_request',
+    'HttpResponse': 'http_response',
+    'HttpRouter': 'http_router',
+    'HttpServer': 'http_server',
 })

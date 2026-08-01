@@ -1,5 +1,6 @@
-from . import HttpResponseHeader, HttpResponseChunk, Request
-from .utils import representate
+from . import HttpResponseHeader, HttpResponseChunk
+from slinn.net.http import HttpRequest
+from slinn.utils import representate
 from typing import Any, Optional
 import gzip
 
@@ -16,7 +17,7 @@ class HttpResponse(HttpResponseHeader, HttpResponseChunk):
         status: str = '200 OK',
         content_type: str = 'text/plain; charset=utf-8',
         use_gzip: bool = True,
-        request: Optional[Request] = None
+        request: Optional[HttpRequest] = None
     ):
         payload = representate(payload)
         use_gzip = use_gzip and request and 'gzip' in request.encoding

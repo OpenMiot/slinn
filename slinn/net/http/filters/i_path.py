@@ -1,5 +1,6 @@
-from . import Filter, Request
-from .exceptions import PatternDoesNotMatch
+from . import Filter
+from slinn.net.http import HttpRequest
+from slinn.exceptions import PatternDoesNotMatch
 import re
 
 
@@ -19,7 +20,7 @@ class IPath(Filter):
             self.filter = self.filter.replace(a, '(?P<'+n+'>' + t.REGEXP + ')')
             self.types[n] = t
 
-    def args(self, request: Request) -> dict:
+    def args(self, request: HttpRequest) -> dict:
         args = re.search(self.filter, request.link)
         if args is None:
             raise PatternDoesNotMatch(f'A path matching template "{self._pattern}", but path "{request.full_link}" was given"')

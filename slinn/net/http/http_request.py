@@ -1,12 +1,14 @@
 from __future__ import annotations
-from . import WebSocketConnection, TCPResponseChunk, FTDispatcher, SocketWrapper, utils
+from slinn import WebSocketConnection, FTDispatcher, utils
+from slinn.net.tcp import TcpPipe
+from slinn.net.address import Address
 from typing import Optional
 import urllib.parse
 import socket
 import asyncio
 
 
-class Request:
+class HttpRequest:
     """
     Representation of HTTP request from client
     """
@@ -24,8 +26,8 @@ class Request:
         self,
         loop: asyncio.AbstractEventLoop,
         header: str,
-        client_address: tuple[str, int],
-        connection: SocketWrapper,
+        client_address: Address,
+        connection: TcpPipe,
         server: 'Server',
         htrf: Optional[FTDispatcher] = None,
     ):
@@ -43,7 +45,7 @@ class Request:
         }
         self.payload = b''
         self.files = []
-        self.ip, self.port = client_address[:2]
+        self.ip, self.port = client_address.host, client_address.port
         self.protocol = self.header['ver'].split('/')[0]
         self.method = self.header['method']
         self.version = self.header['ver']
@@ -77,31 +79,12 @@ class Request:
 
         self.connection = connection
         self.server = server
-        self.htrf = htrf or server.htrf or FTDispatcher()
+        self.htrf = htrf or FTDispatcher()
         self.loop = loop
         self.body = RequestBody(self)
 
     def __repr__(self) -> str:
         return f'[{self.method}] request {self.full_link} from {"" if "." in self.ip else "["}{self.ip}{"" if "." in self.ip else "]"}:{self.port} on {self.host}'
-
-    async def respond(
-        self,
-        response_class: type[TCPResponseChunk],
-        *args,
-        **kwargs
-    ) -> None:
-        buffer = utils.optional(response_class(*args, **kwargs).make, version=self.version, htrf=self.htrf)
-        if buffer is None:
-            return
-        packages = [buffer[x:x + self.server.max_bytes_per_receive] for x in
-                    range(0, len(buffer), self.server.max_bytes_per_receive)]
-        i = 0
-        while i < len(packages):
-            try:
-                await self.connection.send(packages[i])
-                i += 1
-            except TimeoutError:
-                continue
 
     async def recv(self, n_bytes: int) -> bytes:
         return await self.connection.recv(n_bytes)
