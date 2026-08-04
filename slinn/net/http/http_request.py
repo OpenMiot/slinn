@@ -1,7 +1,8 @@
 from __future__ import annotations
-from slinn import WebSocketConnection, FTDispatcher, utils
+from slinn import FTDispatcher
 from slinn.net.tcp import TcpPipe
 from slinn.net.address import Address
+from slinn.utils import lazy_import
 from typing import Optional
 import urllib.parse
 import socket
@@ -27,7 +28,7 @@ class HttpRequest:
         loop: asyncio.AbstractEventLoop,
         header: str,
         client_address: Address,
-        connection: TcpPipe,
+        client_pipe: TcpPipe,
         server: 'Server',
         htrf: Optional[FTDispatcher] = None,
     ):
@@ -37,32 +38,25 @@ class HttpRequest:
         }
 
         self.type = header.split('\r\n')[0].strip().split(' ')
-        self.header = {
-            'method': self.type[0],
-            'link': ' '.join(self.type[1:-1]),
-            'ver': self.type[-1],
-            'data': self.parse_http_header(header)
-        }
-        self.payload = b''
-        self.files = []
         self.ip, self.port = client_address.host, client_address.port
-        self.protocol = self.header['ver'].split('/')[0]
-        self.method = self.header['method']
-        self.version = self.header['ver']
-        self.full_link = urllib.parse.unquote_plus(self.header['link'])
-        self.headers = self.header['data']
+        self.protocol = self.type[-1].split('/')[0]
+        self.method = self.type[0]
+        self.version = self.type[-1]
+        self.full_link = urllib.parse.unquote_plus(' '.join(self.type[1:-1]))
+        self.headers = self.parse_http_header(header)
         host = self.headers.get('Host', '').split(':')
-        if len(host) == 0:
-            self.host = ''
-        elif len(host) == 1:
-            self.host = host[0].encode('ascii').decode('idna')
-        elif len(host) > 1:
-            self.host = ':'.join(host[:-1]).encode('ascii').decode('idna') + ':' + host[-1]
+        match len(host):
+            case 0:
+                self.host = ''
+            case 1:
+                self.host = host[0].encode('ascii').decode('idna')
+            case _:
+                self.host = ':'.join(host[:-1]).encode('ascii').decode('idna') + ':' + host[-1]
         self.user_agent = self.headers['User-Agent'] if 'User-Agent' in self.headers.keys() else \
             self.headers.get('user-agent', '')
         self.accept = self.headers.get('Accept', '').split(',')
-        self.encoding = self.headers.get('Accept-Encoding', '').split(',')
-        self.language = self.headers.get('Accept-Language', '').split(',')
+        self.accept_encoding = self.headers.get('Accept-Encoding', '').split(',')
+        self.accept_language = self.headers.get('Accept-Language', '').split(',')
         self.link = self.full_link[:(self.full_link.index('?') if '?' in self.full_link else None)]
         self.args = self.get_args(
             self.full_link[(self.full_link.index('?') + 1 if '?' in self.full_link else len(self.full_link)):])
@@ -74,12 +68,12 @@ class HttpRequest:
             for arg in self.headers.get('Content-Type', self.headers.get('content-type', '')).split(';')[1:]
         ])
         self.keep_alive = parse_header(self.headers.get('Keep-Alive', ''))
+        self.connection = self.headers.get('Connection', 'close' if self.version == 'HTTP/1.0' else 'Keep-Alive')
 
         self.__str__ = self.__repr__
 
-        self.connection = connection
+        self.client_pipe = client_pipe
         self.server = server
-        self.htrf = htrf or FTDispatcher()
         self.loop = loop
         self.body = RequestBody(self)
 
@@ -89,7 +83,9 @@ class HttpRequest:
     async def recv(self, n_bytes: int) -> bytes:
         return await self.connection.recv(n_bytes)
 
-    async def WebSocket(self, timeout: float) -> WebSocketConnection:
+    async def WebSocket(self, timeout: float) -> 'WebSocketConnection':
+        from slinn.net.ws import WebSocketConnection
+
         conn = WebSocketConnection(self)
         await conn.handshake()
         conn.settimeout(timeout)
@@ -97,9 +93,9 @@ class HttpRequest:
 
 
 class RequestBody:
-    _request: Request
+    _request: HttpRequest
 
-    def __init__(self, request: Request):
+    def __init__(self, request: HttpRequest):
         self._request = request
         self._received = 0
         self._pending = True
@@ -153,7 +149,7 @@ class RequestBody:
         if self._request.content_type[0] == 'application/x-www-form-urlencoded':
             return {
                 key: urllib.parse.unquote_plus(val)
-                for key, val in Request.get_args((await self.getline()).decode()).items()
+                for key, val in HttpRequest.get_args((await self.getline()).decode()).items()
             }
         return {}
 
@@ -171,7 +167,7 @@ class RequestBody:
         header = []
         while line := await self.getline():
             header.append(line)
-        return Request.parse_http_header(b'\r\n'.join(header).decode())
+        return HttpRequest.parse_http_header(b'\r\n'.join(header).decode())
 
     async def next_file_body(self) -> bytes:
         data = bytearray()

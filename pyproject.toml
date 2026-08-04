@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinn"
-version = "3.0.0"
+version = "3.0.0a5"
 description = "An HTTP server framework"
 readme = "README.md"
 requires-python = ">=3.15"
@@ -22,6 +22,10 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
 ]
+alt_loop = [
+    "uvloop>=0.22.1; sys_platform != 'win32'",
+    "winloop>=0.6.3; sys_platform == 'win32'",
+]
 
 [project.scripts]
 slinn-admin = "slinn.scripts.slinn_admin:main"
@@ -35,3 +39,6 @@ include-package-data = true
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["t*", "venv*", "Writerside*", "build*", "test*", ".venv*"]
+
+[tool.pytest.ini_options]
+addopts = "-v"

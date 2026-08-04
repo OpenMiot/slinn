@@ -1,4 +1,4 @@
-from . import HttpResponseHeader
+from slinn import HttpResponseHeader
 from typing import Optional
 
 

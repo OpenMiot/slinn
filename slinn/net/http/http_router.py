@@ -3,7 +3,8 @@ from slinn.net.http.responses.http_response_chunk import HttpResponseChunk
 from slinn.net.http.filters import Filter
 from slinn.net.tcp import TcpRouterProtocol
 from slinn.net.http.filters import Path
-from slinn import Endpoint, utils
+from slinn.net import Endpoint
+from slinn import utils
 import functools
 
 

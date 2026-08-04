@@ -1,5 +1,5 @@
-from . import HttpResponseChunk
-from .exceptions import SSEEventIsEmpty
+from slinn import HttpResponseChunk
+from slinn.exceptions import SSEEventIsEmpty
 from typing import Optional, Iterable
 
 

@@ -1,6 +1,6 @@
 from typing import Protocol, Any, Optional, Iterable
-from slinn.net import RouterProtocol, RequestProtocol, PipeProtocol
-from slinn import Address
+from slinn.net import RouterProtocol, PipeProtocol
+from slinn.net.address import Address
 import logging
 import ssl
 

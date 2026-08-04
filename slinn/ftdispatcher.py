@@ -1,4 +1,4 @@
-from . import Endpoint
+from slinn.net import Endpoint
 from typing import Callable
 
 

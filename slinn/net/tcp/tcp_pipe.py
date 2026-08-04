@@ -74,10 +74,7 @@ class TcpPipe(PipeProtocol):
         await self.do_handshake()
 
         if not self.buffer:
-            try:
-                await asyncio.wait_for(self._read_event.wait(), timeout=self._timeout)
-            except TimeoutError:
-                raise
+            await asyncio.wait_for(self._read_event.wait(), timeout=self._timeout)
 
         if not self.buffer:
             self.close()

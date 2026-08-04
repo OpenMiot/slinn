@@ -48,7 +48,7 @@ __getattr__ = partial(utils.lazy_exporter, __name__, {
 })
 
 
-__PD = datetime(2026, 8, 2)
+__PD = datetime(2026, 8, 5)
 
 VERSION = {
     'name': 'Slinn',
@@ -58,7 +58,7 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 4
+        'revision': 5
     },
     'dies_at': __PD + timedelta(days=180),
     'is_snapshot': True,

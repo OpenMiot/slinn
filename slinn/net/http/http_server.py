@@ -41,7 +41,7 @@ class HttpServer(TcpServer):
         loop = asyncio.get_event_loop()
         args['max_requests'] = args.get('max_requests', self._max_requests)
         client_pipe.set_timeout(min(self._max_timeout, args.get('timeout', self._timeout)))
-        self.logger.info(f'New HTTP connection from {client_address.host}:{client_address.port} established')
+        self.logger.debug(f'New HTTP connection from {client_address.host}:{client_address.port} established')
         while not client_pipe.closed:
             args['max_requests'] -= 1
             try:
@@ -96,8 +96,13 @@ class HttpServer(TcpServer):
                 else:
                     response = await coro
                     if response:
-                        await client_pipe.send(response.make())
-                    print(response.make())
+                        await client_pipe.send(response.make(version=request.version))
+
+                await request.body.skip()
+
+                if request.connection == 'close':
+                    client_pipe.close()
+                    continue
 
             except KeyboardInterrupt:
                 raise
@@ -107,5 +112,4 @@ class HttpServer(TcpServer):
                 self.logger.warning(f'During handling pipe, an {exception} has occurred', exc_info=True)
                 await self.reload(*self.routers)
                 continue
-        self.logger.info(f'HTTP connection from {client_address.host}:{client_address.port} closed')
-
+        self.logger.debug(f'HTTP connection from {client_address.host}:{client_address.port} closed')

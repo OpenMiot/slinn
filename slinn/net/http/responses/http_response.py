@@ -28,3 +28,6 @@ class HttpResponse(HttpResponseHeader, HttpResponseChunk):
             ('Content-Length', len(payload))
         ], status, content_type, use_gzip)
         HttpResponseChunk.__init__(self, payload)
+
+    def make(self, version: str = 'HTTP/1.1') -> bytes:
+        return HttpResponseHeader.make(self, version) + HttpResponseChunk.make(self, version)

@@ -6,10 +6,35 @@ import json
 import re
 import threading
 import importlib
+import importlib.util
 
-optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
+#optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
 rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
 
+
+def optional(func, *p, **k):
+    params = inspect.signature(func).parameters
+    args, kwargs = [], {}
+    for i, positional in enumerate(p):
+        match params[tuple(params)[i]].kind.name:
+            case 'POSITIONAL_ONLY' | 'POSITIONAL_OR_KEYWORD':
+                args.append(positional)
+            case 'VAR_POSITIONAL':
+                args.extend(p[i:])
+                break
+            case 'KEYWORD_ONLY' | 'VAR_KEYWORD': ...
+    for i, keyword in enumerate(k):
+        match params[tuple(params)[i]].kind.name:
+            case 'KEYWORD_ONLY' | 'POSITIONAL_OR_KEYWORD':
+                if keyword not in params:
+                    continue
+                kwargs[keyword] = k.get(keyword, None)
+            case 'VAR_KEYWORD':
+                kwargs.update(k)
+                break
+            case 'POSITIONAL_ONLY' | 'VAR_POSITIONAL': ...
+    print(args, kwargs)
+    return func(*args, **kwargs)
 
 class StoppableThread(threading.Thread):
     def __init__(self, *args: tuple, **kwargs: dict) -> None:
@@ -129,3 +154,13 @@ def lazy_exporter(module, submodules, name):
         raise AttributeError(f"module {__name__} has no attribute {name}")
     mod = importlib.import_module(f"{module}.{submodules[name]}")
     return getattr(mod, name)
+
+
+def lazy_import(name):
+    spec = importlib.util.find_spec(name)
+    loader = importlib.util.LazyLoader(spec.loader)
+    spec.loader = loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module

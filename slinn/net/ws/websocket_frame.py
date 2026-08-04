@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Optional, Iterator, Callable
-from . import WebSocketOpcodes
-import asyncio
+from slinn.net.ws import WebSocketOpcodes
 
 
 class WebSocketFrame:

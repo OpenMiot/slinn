@@ -1,7 +1,7 @@
 from __future__ import annotations
-from slinn import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake
+from slinn.net.ws import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake
 from slinn.net.http.responses import HttpResponseChunk
-from .exceptions import NotAWebSocketConnection
+from slinn.exceptions import NotAWebSocketConnection
 
 
 class WebSocketConnection:

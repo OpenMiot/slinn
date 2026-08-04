@@ -23,7 +23,6 @@ class HttpResponseHeader(HttpResponseChunk):
         self.data = ([
                         ('Content-Type', content_type),
                         ('Server', slinn.version),
-                        ('Connection', 'Keep-Alive'),
                     ] + (data if data is not None else []))
         self.status = status
         self.use_gzip = use_gzip
@@ -68,9 +67,12 @@ class HttpResponseHeader(HttpResponseChunk):
         return self
 
     def make(self, version: str = 'HTTP/1.1') -> bytes:
-        self.payload = (f'{version} {self.status}' + '\r\n'
-                       + "\r\n".join([
-                           str(dat[0]) + ": " + str(dat[1])
-                           for dat in self.data + ([('Content-Encoding', 'gzip')] if self.use_gzip else [])
-                       ]) + '\r\n\r\n').encode('utf-8') + self.payload
-        return super().make(version)
+        data = self.data.copy()
+        data += [('Content-Encoding', 'gzip')] if self.use_gzip else []
+        data.append(('Connection', 'close' if version == 'HTTP/1.0' else 'Keep-Alive'))
+        header = (f'{version} {self.status}' + '\r\n'
+                   + "\r\n".join([
+                       str(dat[0]) + ": " + str(dat[1])
+                       for dat in data
+                   ]) + '\r\n\r\n')
+        return header.encode('utf-8')
