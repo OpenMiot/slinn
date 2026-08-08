@@ -1,54 +1,27 @@
 from datetime import datetime, timedelta
+from babel.dates import format_timedelta
+from locale import getdefaultlocale
 from functools import partial
 from slinn import utils
+from slinn import exceptions
 import os
 import sys
 import inspect
 import warnings
 
+from slinn.dispatcher import Dispatcher
 
 __getattr__ = partial(utils.lazy_exporter, __name__, {
-    'Endpoint': 'endpoint',
     'IMiddleware': 'i_middleware',
     'Preprocessor': 'preprocessor',
-    'TCPResponseChunk': 'tcp_response_chunk',
-    'HttpResponseChunk': 'http_response_chunk',
-    'CookieSameSite': 'http_response_header',
-    'HttpResponseHeader': 'http_response_header',
-    'WebSocketOpcodes': 'websocket_opcodes',
-    'WebSocketHandshake': 'websocket_handshake',
-    'WebSocketFrame': 'websocket_frame',
-    'WebSocketConnection': 'websocket_connection',
-    'WebSocketGroup': 'websocket_group',
-    'Filter': 'filter',
-    'LinkFilter': 'link_filter',
-    'AnyFilter': 'any_filter',
     'HCDispatcher': 'hcdispatcher',
     'FTDispatcher': 'ftdispatcher',
-    'SocketWrapper': 'socket_wrapper',
-    'SSLSocketWrapper': 'ssl_socket_wrapper',
-    'Request': 'request',
-    'RequestBody': 'request',
-    'IPath': 'i_path',
-    'Path': 'path',
-    'Router': 'router',
-    'HttpResponse': 'http_response',
-    'HttpRedirect': 'http_redirect',
-    'HttpGETRedirect': 'http_get_redirect',
-    'EmptyHttpResponse': 'empty_http_response',
-    'HttpRender': 'http_render',
-    'HttpAPIResponse': 'http_api_response',
-    'HttpJSONResponse': 'http_json_response',
-    'HttpJSONAPIResponse': 'http_json_api_response',
-    'SSEHeader': 'sse_header',
-    'SSEEvent': 'sse_event',
-    'Server': 'server',
     'Migration': 'migration',
     'TemplateProtocol': 'template_protocol',
 })
 
 
-__PD = datetime(2026, 8, 5)
+__PD = datetime(2026, 8, 8)
 
 VERSION = {
     'name': 'Slinn',
@@ -58,11 +31,13 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 5
+        'revision': 6
     },
     'dies_at': __PD + timedelta(days=180),
-    'is_snapshot': True,
-    'may_incompatible': True
+    'is_eap': True,
+    'may_incompatible': True,
+    'release_install': 'pip install --upgrade slinn',
+    'eap_install': 'pip install --upgrade git+https://github.com/OpenMiot/slinn@flux'
 }
 make_version = lambda ver: f'{ver['major']}.{ver['minor']}.{ver['patch']}' + (
     f'{ver['type'][0]}{ver['revision']}' if ver['revision'] else '')
@@ -70,11 +45,16 @@ version = f'{VERSION['name']} {VERSION['codename']} {make_version(VERSION['versi
 
 root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
 
-
-warnings.simplefilter('always', DeprecationWarning)
-
-if VERSION['is_snapshot'] and datetime.now() > VERSION['dies_at']:
-    exit("Slinn`s version has expired. You need to upgrade")
+if VERSION['is_eap'] and datetime.now() > VERSION['dies_at']:
+    exit(f'Slinn`s EAP version has expired ({format_timedelta(datetime.now() - VERSION['dies_at'], locale=getdefaultlocale()[0])}).\n'
+         f'Current version: {version}\n'
+         f'You need to upgrade to a newer EAP version or to a release:\n'
+         f' - Release: {VERSION['release_install']}\n'
+         f' - EAP: {VERSION['eap_install']}\n\n')
 
 if VERSION['may_incompatible']:
-    warnings.warn('Slinn`s version may be incompatible with future releases. DO NOT use it in prod')
+    warnings.warn(
+        message = 'Slinn`s EAP version may be incompatible with future releases. Don`t use it in prod',
+        category = exceptions.IncompatibleVersion,
+        skip_file_prefixes = (os.path.dirname(__name__),)
+    )

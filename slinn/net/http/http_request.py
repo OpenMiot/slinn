@@ -80,15 +80,12 @@ class HttpRequest:
     def __repr__(self) -> str:
         return f'[{self.method}] request {self.full_link} from {"" if "." in self.ip else "["}{self.ip}{"" if "." in self.ip else "]"}:{self.port} on {self.host}'
 
-    async def recv(self, n_bytes: int) -> bytes:
-        return await self.connection.recv(n_bytes)
-
-    async def WebSocket(self, timeout: float) -> 'WebSocketConnection':
+    async def get_websocket(self, timeout: float) -> 'WebSocketConnection':
         from slinn.net.ws import WebSocketConnection
 
         conn = WebSocketConnection(self)
         await conn.handshake()
-        conn.settimeout(timeout)
+        conn.set_timeout(timeout)
         return conn
 
 

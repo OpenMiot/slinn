@@ -4,12 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slinn"
-version = "3.0.0a5"
+version = "3.0.0a6"
 description = "An HTTP server framework"
 readme = "README.md"
 requires-python = ">=3.15"
 dependencies = [
     "tomlkit==0.15.1",
+    "orjson>=3.11.9",
+    "babel>=2.18.0"
 ]
 authors = [
     { name = "Miot Project", email = "openmiot@gmail.com"},
@@ -21,6 +23,9 @@ urls = { Homepage = "https://wiki.miot.su/slinn" }
 dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pytest-describe>=3.2.0",
+    "pytest-mock>=3.15.1",
+    "pytest-cov>=7.1.0",
 ]
 alt_loop = [
     "uvloop>=0.22.1; sys_platform != 'win32'",
@@ -41,4 +46,7 @@ where = ["."]
 exclude = ["t*", "venv*", "Writerside*", "build*", "test*", ".venv*"]
 
 [tool.pytest.ini_options]
-addopts = "-v"
+addopts = "-v --cov=slinn --cov-report=html --cov-fail-under=80"
+filterwarnings = [
+    "ignore::UserWarning"
+]

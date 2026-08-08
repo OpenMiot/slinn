@@ -2,13 +2,13 @@ from abc import ABCMeta
 from typing import Any
 import warnings
 import inspect
-import json
+import orjson
 import re
 import threading
 import importlib
 import importlib.util
 
-#optional = lambda func, *a, **w: func(*a, **{k: v for k, v in w.items() if k in inspect.signature(func).parameters})
+
 rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
 
 
@@ -23,17 +23,16 @@ def optional(func, *p, **k):
                 args.extend(p[i:])
                 break
             case 'KEYWORD_ONLY' | 'VAR_KEYWORD': ...
-    for i, keyword in enumerate(k):
+    for i, keyword in enumerate(params):
         match params[tuple(params)[i]].kind.name:
             case 'KEYWORD_ONLY' | 'POSITIONAL_OR_KEYWORD':
-                if keyword not in params:
+                if keyword not in k:
                     continue
                 kwargs[keyword] = k.get(keyword, None)
             case 'VAR_KEYWORD':
                 kwargs.update(k)
                 break
             case 'POSITIONAL_ONLY' | 'VAR_POSITIONAL': ...
-    print(args, kwargs)
     return func(*args, **kwargs)
 
 class StoppableThread(threading.Thread):
@@ -46,18 +45,6 @@ class StoppableThread(threading.Thread):
 
     def stopped(self) -> bool:
         return self._stop_event.is_set()
-
-
-def make_deprecated(obj, what_instead):
-    class Wrapper(obj):
-        __is_deprecation_warned = False
-        
-        def __init__(self, *args, **kwargs):
-            if not Wrapper.__is_deprecation_warned:
-                warnings.warn(f"Using {obj.__name__} is deprecated. Instead of use {what_instead.__name__}", DeprecationWarning, stacklevel=256)
-            Wrapper.__is_deprecation_warned = True
-            super().__init__(*args, **kwargs)
-    return Wrapper
 
 
 def restartswith(text: str, reg: str) -> bool:
@@ -89,64 +76,34 @@ def min_restartswith_size(text: str, reg: str) -> int:
     return len(smallest) if smallest is not None else 2147483647
 
 
-def representate(obj: Any) -> bytes:
-    if type(obj) == dict:
-        return json.dumps({key:representate(obj[key]).decode() for key in obj.keys()}, ensure_ascii=False).encode()
-    if type(obj) in [list, tuple, set]:
-        return b', '.join([representate(elem) for elem in obj])
-    if type(obj) == str:
-        return obj.encode()
+def representate(obj: any) -> bytes:
+    def __representate_str(obj: any) -> str | dict | list | int | float | bool:
+        if isinstance(obj, dict):
+            return {key: __representate_str(obj[key]) for key in obj.keys()}
+        if type(obj) in (list, tuple, set):
+            return [__representate_str(elem) for elem in obj]
+        if type(obj) in (str, int, float, bool):
+            return obj
+        if isinstance(obj, bytes):
+            return obj.decode()
+        if type(obj).__str__ != object.__str__ or type(obj).__repr__ != object.__repr__:
+            try:
+                return repr(obj)
+            except Exception:
+                pass
+        try:
+            return {key: __representate_str(obj.__dict__[key]) for key in obj.__dict__.keys()}
+        except Exception as e:
+            pass
+        return f'<{type(obj)} object at {id(obj)}>'
+
     if type(obj) == bytes:
         return obj
-    if type(obj) in [int, float]:
-        return str(obj).encode()
-    if type(obj) == bool:
-        return b'true' if obj else b'false'
-    if type(obj).__str__ != object.__str__ or type(obj).__repr__ != object.__repr__:
-        try: return str(obj).encode()
-        except Exception: pass
-    try: return json.dumps({key:representate(obj.__dict__[key]).decode() for key in obj.__dict__.keys()}, ensure_ascii=False).encode()
-    except Exception as e: print(e)
-    return f'<{type(obj)} object at {id(obj)}>'
 
-
-def __representate_str(obj: any) -> str | dict | list | int | float | bool:
-    if isinstance(obj, dict):
-        return {key: __representate_str(obj[key]) for key in obj.keys()}
-    if type(obj) in (list, tuple, set):
-        return [__representate_str(elem) for elem in obj]
-    if type(obj) in (str, int, float, bool):
-        return obj
-    if isinstance(obj, bytes):
-        return obj.decode()
-    if type(obj).__str__ != object.__str__ or type(obj).__repr__ != object.__repr__:
-        try:
-            return repr(obj)
-        except Exception:
-            pass
-    try:
-        return json.dumps({key: __representate_str(obj.__dict__[key]) for key in obj.__dict__.keys()}, ensure_ascii=False)
-    except Exception as e:
-        pass
-    return f'<{type(obj)} object at {id(obj)}>'
-
-
-def representate_str(obj: any) -> str:
-    try:
-        return json.dumps(__representate_str(obj), ensure_ascii=False)
-    except:
-        return __representate_str(obj)
-
-
-def rename_class(cls, name):
-    new = type(cls)(
-        name,
-        cls.__bases__,
-        dict(cls.__dict__)
-    )
-    new.__qualname__ = new.__qualname__.replace(cls.__name__, name)
-    new.__name__ = name
-    return new
+    representated = __representate_str(obj)
+    if type(representated) in (str, int, float, bool):
+        return str(representated).encode()
+    return orjson.dumps(representated)
 
 
 def lazy_exporter(module, submodules, name):

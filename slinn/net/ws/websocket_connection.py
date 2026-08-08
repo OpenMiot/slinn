@@ -5,17 +5,20 @@ from slinn.exceptions import NotAWebSocketConnection
 
 
 class WebSocketConnection:
-    def __init__(self, request: 'Request'):
+    def __init__(self, request: 'HttpRequest'):
         self.request = request
+        self.client_pipe = request.client_pipe
 
     async def handshake(self):
         if 'Sec-WebSocket-Key' not in self.request.headers:
             raise NotAWebSocketConnection()
-        await self.request.respond(WebSocketHandshake, self.request.headers['Sec-WebSocket-Key'])
+        await self.client_pipe.send(
+            WebSocketHandshake(self.request.headers['Sec-WebSocket-Key']).make(self.request.version)
+        )
 
     async def _send(self, opcode: WebSocketOpcodes, payload: bytes):
         frame = WebSocketFrame(True, opcode, False, payload)
-        await self.request.respond(HttpResponseChunk, WebSocketFrame.pack(frame))
+        await self.client_pipe.send(HttpResponseChunk(WebSocketFrame.pack(frame)).make())
 
     async def send_binary(self, payload: bytes):
         await self._send(WebSocketOpcodes.BINARY, payload)
@@ -32,12 +35,12 @@ class WebSocketConnection:
     async def close(self, reason: str = ''):
         await self._send(WebSocketOpcodes.CLOSE, reason.encode())
 
-    def settimeout(self, timeout: float):
-        self.request.connection.settimeout(timeout)
+    def set_timeout(self, timeout: float):
+        self.client_pipe.set_timeout(timeout)
 
     @property
     def closed(self) -> bool:
-        return self.request.connection.closed()
+        return self.client_pipe.closed
 
     async def send(self, payload: bytes | str):
         if isinstance(payload, bytes):
@@ -48,24 +51,24 @@ class WebSocketConnection:
             raise TypeError()
 
     async def read(self) -> WebSocketFrame:
-        data = bytearray(await self.request.recv(2))
+        data = bytearray(await self.client_pipe.recv(2))
         payload_len = data[1] & 127
         if payload_len == 126:
-            data += await self.request.recv(2)
+            data += await self.client_pipe.recv(2)
             payload_len = int.from_bytes(data[2:4])
         elif payload_len == 127:
-            data += await self.request.recv(4)
+            data += await self.client_pipe.recv(4)
             payload_len = int.from_bytes(data[2:6])
         if data[1] & 128:
-            data += await self.request.recv(4)
+            data += await self.client_pipe.recv(4)
         if payload_len < 126:
-            data += await self.request.recv(payload_len)
+            data += await self.client_pipe.recv(payload_len)
         elif 125 < payload_len < 65536:
-            data += await self.request.recv(payload_len)
+            data += await self.client_pipe.recv(payload_len)
         else:
-            data += await self.request.recv(payload_len)
+            data += await self.client_pipe.recv(payload_len)
         frame = WebSocketFrame.unpack(data)
         if frame.opcode == WebSocketOpcodes.CLOSE:
-            if not self.request.closed():
-                self.request.connection.close()
+            if not self.closed:
+                self.client_pipe.connection.close()
         return frame

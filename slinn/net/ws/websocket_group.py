@@ -1,4 +1,4 @@
-from slinn import WebSocketFrame, WebSocketConnection
+from slinn.net.ws import WebSocketFrame, WebSocketConnection
 from typing import Callable, Awaitable
 import functools
 

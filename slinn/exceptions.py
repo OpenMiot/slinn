@@ -10,3 +10,4 @@ class AppHasNoName(ValueError): pass
 # Warnings
 class Endpoint404NotFound(UserWarning): pass
 class Endpoint500NotFound(UserWarning): pass
+class IncompatibleVersion(UserWarning): pass

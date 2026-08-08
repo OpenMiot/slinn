@@ -20,7 +20,7 @@ class HttpResponse(HttpResponseHeader, HttpResponseChunk):
         request: Optional[HttpRequest] = None
     ):
         payload = representate(payload)
-        use_gzip = use_gzip and request and 'gzip' in request.encoding
+        use_gzip = use_gzip and request and 'gzip' in request.accept_encoding
         if use_gzip:
             payload = gzip.compress(payload)
 

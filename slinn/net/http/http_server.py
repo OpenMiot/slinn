@@ -85,6 +85,7 @@ class HttpServer(TcpServer):
                     continue
                 coro = optional(
                     endpoint.function,
+                    request = request,
                     client_pipe = client_pipe,
                     client_address = client_address,
                     **args
