@@ -1,80 +1,127 @@
 import asyncio
 from typing import Iterable, Any, Optional
-from slinn.net.tcp import TcpServer, TcpPipe
+from slinn.net.tcp import TcpServer, TcpPipe, TcpRouterProtocol
 from slinn.net.http import HttpRouter, HttpRequest
 from slinn.net.address import Address
-from slinn.exceptions import SocketClosed
+from slinn.net import ServerProtocol, FilterProtocol, Endpoint
 from slinn.utils import optional
+from slinn import _
+import functools
 import logging
 import ssl
 import inspect
 
 
-class HttpServer(TcpServer):
+class HttpServer(ServerProtocol):
+    class _TcpAnyFilter(FilterProtocol):
+        async def size(self) -> int:
+            return 0
+
+        def args(self) -> dict:
+            return {}
+
+    class _TcpRouter(TcpRouterProtocol):
+        def __init__(self):
+            self.endpoints: list[Endpoint] = []
+
+        def __call__(self, request_filter: HttpServer._TcpAnyFilter):
+            def decorator(func):
+                if inspect.isasyncgenfunction(func):
+                    @functools.wraps(func)
+                    async def wrapper(*args, **kwargs):
+                        async for item in func(*args, **kwargs):
+                            yield item
+                else:
+                    @functools.wraps(func)
+                    async def wrapper(*args, **kwargs):
+                        return await func(*args, **kwargs)
+
+                self.endpoints = [Endpoint(request_filter, wrapper, request_filter.args)]
+                return wrapper
+
+            return decorator
+
+        def check(self, *args, **kwargs) -> bool:
+            return True
+
     def __init__(
         self,
         address: Address,
-        protocols_config: dict[str, Any],
+        protocols_config: dict[str, dict[str, Any]],
         routers: Iterable[HttpRouter],
         logger: logging.Logger,
         ssl_context: Optional[ssl.SSLContext] = None
     ) -> None:
-        super().__init__(
-            address = address,
-            protocols_config = protocols_config,
-            routers = routers,
-            logger = logger,
-            ssl_context = ssl_context
+        self.routers = routers
+        self.logger = logger
+
+        self._router = HttpServer._TcpRouter()
+        self._server = TcpServer(
+            address=address,
+            protocols_config=protocols_config,
+            routers=(self._router, ),
+            logger=logger,
+            ssl_context=ssl_context
         )
 
         self.http_config = protocols_config.get('http', {})
 
-        self._max_requests = self.http_config.get('max_requests', 200)
+        self._max_requests = self.http_config.get('max_requests', 1000)
         self._max_header_size = self.http_config.get('max_header_size', 8192)
 
-    async def handle_pipe(
-        self,
-        client_pipe: TcpPipe,
-        client_address: Address,
-        args: dict[Any, Any]
-    ) -> None:
-        loop = asyncio.get_event_loop()
-        args['max_requests'] = args.get('max_requests', self._max_requests)
-        client_pipe.set_timeout(min(self._max_timeout, args.get('timeout', self._timeout)))
-        self.logger.debug(f'New HTTP connection from {client_address.host}:{client_address.port} established')
-        while not client_pipe.closed:
-            args['max_requests'] -= 1
-            try:
+        self.listen = self._server.listen
+        self.handle_pipe = self._server.handle_pipe
+        self.shutdown = self._server.shutdown
+
+        @self._router(HttpServer._TcpAnyFilter())
+        async def http_endpoint(client_pipe: TcpPipe, client_address: Address):
+            loop = asyncio.get_event_loop()
+            args = {}
+            while not client_pipe.closed:
+                args['max_requests'] = args.get('max_requests', self._max_requests)
+                client_pipe.set_timeout(min(self._server.max_timeout, args.get('timeout', self._server.timeout)))
+                args['max_requests'] -= 1
                 if not args['max_requests']:
                     client_pipe.close()
-                    break
+                    return
                 try:
                     data = bytearray()
                     while b'\r\n\r\n' not in data:
-                        b = await client_pipe.recv(self._max_bytes_per_receive)
-                        data += b
-                        if not b:
+                        try:
+                            b = await client_pipe.recv(self._server.max_bytes_per_receive)
+                            data += b
+                            if not b:
+                                break
+                        except (asyncio.CancelledError, TimeoutError):
                             break
                     data = data.split(b'\r\n\r\n')
                     header = data[0].decode()
+                    if not header:
+                        continue
                     client_pipe.paste(b'\r\n\r\n'.join(data[1:]))
                     request = HttpRequest(loop, header, client_address, client_pipe, self)
                     self.logger.info(repr(request))
                 except KeyError:
-                    self.logger.info('Got KeyError, probably invalid request. Ignore')
+                    self.logger.info(_('Got KeyError, probably invalid request. Ignore'))
                     continue
                 except UnicodeDecodeError:
-                    self.logger.info('Got UnicodeDecodeError, probably invalid header. Ignore')
+                    self.logger.info(_('Got UnicodeDecodeError, probably invalid header. Ignore'))
                     continue
                 endpoints = []
                 for router in self.routers:
-                    endpoints += router.endpoints
+                    if optional(
+                            router.check,
+                            client_pipe=client_pipe,
+                            client_address=client_address,
+                            request=request
+                    ):
+                        endpoints += router.endpoints
                 sizes = [
                     await optional(
                         endpoint.filter.size,
-                        client_pipe = client_pipe,
-                        client_address = client_address,
-                        request = request
+                        client_pipe=client_pipe,
+                        client_address=client_address,
+                        request=request
                     )
                     for endpoint in endpoints
                 ]
@@ -85,32 +132,26 @@ class HttpServer(TcpServer):
                     continue
                 coro = optional(
                     endpoint.function,
-                    request = request,
-                    client_pipe = client_pipe,
-                    client_address = client_address,
+                    request=request,
+                    client_pipe=client_pipe,
+                    client_address=client_address,
                     **args
                 )
                 if inspect.isasyncgenfunction(endpoint.function):
                     async for response in coro:
                         if response:
-                            await client_pipe.send(response.make())
+                            yield response.make(request=request)
                 else:
                     response = await coro
                     if response:
-                        await client_pipe.send(response.make(version=request.version))
+                        yield response.make(request=request)
 
                 await request.body.skip()
 
                 if request.connection == 'close':
                     client_pipe.close()
-                    continue
+                    return
 
-            except KeyboardInterrupt:
-                raise
-            except (SocketClosed, TimeoutError):
-                continue
-            except Exception as exception:
-                self.logger.warning(f'During handling pipe, an {exception} has occurred', exc_info=True)
-                await self.reload(*self.routers)
-                continue
-        self.logger.debug(f'HTTP connection from {client_address.host}:{client_address.port} closed')
+    async def reload(self, *routers: TcpRouterProtocol) -> None:
+        self.routers = routers
+        await self._server.reload()

@@ -1,4 +1,5 @@
 from . import HttpResponseChunk
+from slinn.net.http import HttpRequest
 from typing import Optional, Any
 import slinn
 import enum
@@ -66,11 +67,11 @@ class HttpResponseHeader(HttpResponseChunk):
         ))
         return self
 
-    def make(self, version: str = 'HTTP/1.1') -> bytes:
+    def make(self, request: HttpRequest) -> bytes:
         data = self.data.copy()
         data += [('Content-Encoding', 'gzip')] if self.use_gzip else []
-        data.append(('Connection', 'close' if version == 'HTTP/1.0' else 'Keep-Alive'))
-        header = (f'{version} {self.status}' + '\r\n'
+        data.append(('Connection', request.connection))
+        header = (f'{request.version} {self.status}' + '\r\n'
                    + "\r\n".join([
                        str(dat[0]) + ": " + str(dat[1])
                        for dat in data

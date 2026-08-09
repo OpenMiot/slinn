@@ -1,5 +1,6 @@
 from __future__ import annotations
 from slinn import utils
+from slinn.net.http import HttpRequest
 
 
 class Filter:
@@ -12,10 +13,10 @@ class Filter:
         self.filter = _filter
         self.methods = methods
 
-    def check(self, request: 'Request') -> bool:
+    def check(self, request: HttpRequest) -> bool:
         return utils.rematcheswith(request.link, self.filter) and request.method.upper() in self.methods
 
-    async def size(self, request: 'Request') -> int:
+    async def size(self, request: HttpRequest) -> int:
         a = utils.min_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
         b = utils.Bmin_restartswith_size(request.link, self.filter) if self.check(request) else 2147483647
         if not self.check(request):

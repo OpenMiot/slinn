@@ -27,7 +27,7 @@ class HttpRender(HttpResponse):
 
     def make(
         self,
-        version: str = 'HTTP/1.1',
+        request: HttpRequest,
         htrf: Optional[FTDispatcher] = None
     ) -> bytes:
         def size(_filter: str, text: str) -> int:
@@ -41,7 +41,7 @@ class HttpRender(HttpResponse):
         htrf = htrf or FTDispatcher()
         if htrf.handles == []:
             with self.storage(self.file_path, 'rb') as file:
-                return HttpResponse(file.read(), data=self.data).make(version=version)
+                return HttpResponse(file.read(), data=self.data).make(request = request)
         
         sizes = [size(handle.filter, self.file_path) for handle in htrf.handles]
         handle = htrf.handles[sizes.index(max(sizes))]

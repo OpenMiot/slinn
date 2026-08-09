@@ -14,7 +14,7 @@ class TcpServer:
     def __init__(
         self,
         address: Address,
-        protocols_config: dict[str, Any],
+        protocols_config: dict[str, dict[str, Any]],
         routers: Iterable[TcpRouterProtocol],
         logger: logging.Logger,
         ssl_context: Optional[ssl.SSLContext] = None
@@ -27,9 +27,9 @@ class TcpServer:
 
         self.server_pipe: Optional[TcpPipe] = None
 
-        self._timeout = self.tcp_config.get('timeout', 0.5)
-        self._max_timeout = self.tcp_config.get('_max_timeout', 60)
-        self._max_bytes_per_receive = self.tcp_config.get('_max_bytes_per_receive', 65535)
+        self.timeout = self.tcp_config.get('timeout', 0.5)
+        self.max_timeout = self.tcp_config.get('_max_timeout', 60)
+        self.max_bytes_per_receive = self.tcp_config.get('_max_bytes_per_receive', 65535)
 
     async def reload(self, *routers: TcpRouterProtocol) -> None:
         self.routers = routers
@@ -42,8 +42,8 @@ class TcpServer:
             family = self.address.family,
             type = socket.SOCK_STREAM,
             ssl_context = self.ssl_context,
-            timeout = min(self._timeout, self._max_timeout),
-            bytes_per_receive = self._max_bytes_per_receive
+            timeout = min(self.timeout, self.max_timeout),
+            bytes_per_receive = self.max_bytes_per_receive
         )
         self.server_pipe.set_sock_opt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
@@ -73,8 +73,8 @@ class TcpServer:
         client_address: Address,
         args: dict[Any, Any]
     ) -> None:
-        client_pipe.set_timeout(min(self._max_timeout, args.get('timeout', self._timeout)))
-        self.logger.info(f'New TCP connection from {client_address.host}:{client_address.port} established')
+        client_pipe.set_timeout(min(self.max_timeout, args.get('timeout', self.timeout)))
+        self.logger.debug(f'New TCP connection from {client_address.host}:{client_address.port} established')
         while not client_pipe.closed:
             try:
                 endpoints = []
@@ -118,7 +118,7 @@ class TcpServer:
                 self.logger.warning(f'During handling pipe, an {exception} has occurred', exc_info=True)
                 await self.reload(*self.routers)
                 continue
-        self.logger.info(f'TCP connection from {client_address.host}:{client_address.port} closed')
+        self.logger.debug(f'TCP connection from {client_address.host}:{client_address.port} closed')
 
     async def shutdown(self) -> None:
         if not self.server_pipe.closed:

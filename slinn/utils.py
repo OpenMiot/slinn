@@ -1,5 +1,6 @@
 from abc import ABCMeta
-from typing import Any
+from typing import Any, Coroutine
+from collections.abc import AsyncIterable
 import warnings
 import inspect
 import orjson
@@ -12,7 +13,7 @@ import importlib.util
 rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
 
 
-def optional(func, *p, **k):
+def optional(func, *p, **k) -> Any | Coroutine | AsyncIterable:
     params = inspect.signature(func).parameters
     args, kwargs = [], {}
     for i, positional in enumerate(p):

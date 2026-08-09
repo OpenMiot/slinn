@@ -1,6 +1,7 @@
 from typing import Callable
 from slinn.net.http.responses.http_response_chunk import HttpResponseChunk
 from slinn.net.http.filters import Filter
+from slinn.net.http import HttpRequest
 from slinn.net.tcp import TcpRouterProtocol
 from slinn.net.http.filters import Path
 from slinn.net import Endpoint
@@ -32,8 +33,8 @@ class HttpRouter(TcpRouterProtocol):
 
         return decorator
 
-    def check(self, host: str) -> bool:
-        return len(self.hosts) == 0 or True in [utils.restartswith(host, _host) for _host in self.hosts]
+    def check(self, request: HttpRequest) -> bool:
+        return len(self.hosts) == 0 or True in [utils.restartswith(request.host, _host) for _host in self.hosts]
 
     def _register_handler_decorator(self, path: str = '', methods: tuple[str, ...] = ()):
         def decorator(func):

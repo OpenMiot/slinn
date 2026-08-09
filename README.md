@@ -1,45 +1,52 @@
 
 <div align="center">
     <h1>Slinn</h1>
-    <b>Slinn is an HTTP server framework</b><br/>
+    <b>Slinn - фреймворк для создания Web-приложений на языке Python</b><br/>
     <img src="https://img.shields.io/github/license/OpenMiot/slinn" alt="License"/>
     <img src="https://img.shields.io/github/languages/top/OpenMiot/slinn" alt="GitHub top language"/>
     <img src="https://img.shields.io/github/v/release/OpenMiot/slinn" alt="GitHub Release"/>
     <img src="https://img.shields.io/github/stars/OpenMiot/slinn" alt="GitHub Repo stars"/>
 </div>
 
-### Simple example
+### Преимущества Slinn
+
+- Асинхронность + параллелизм(опционально, в 3.15t)
+- Поддержка плагинов и пакетный менеджер
+- Гибкая декларативная настройка
+- Поддержка любых сетевых протоколов
+- Работа на нескольких портах в одном запущенном экземпляре
+
+### Простой пример синтаксиса
 ```python
-from slinn import (
-    ApiDispatcher, AnyFilter, AsyncRequest, HttpResponse,
-    HttpRedirect, HttpJSONResponse
-)
+from slinn.net.http import HttpRouter, HttpRequest
+from slinn.net.http.responses import HttpRedirect
+from slinn.net.http.filters import AnyFilter
 
 
-dp = ApiDispatcher()
+router = HttpRouter()
 
 
-@dp.get('api/<str method>')
-async def api(request: AsyncRequest, method: str) -> HttpResponse:
-    return HttpJSONResponse(
-        status='ok',
-        method=method,
-        ip=request.ip
-    )
+@router.get('api/<str method>')
+async def api(request: HttpRequest, method: str):
+    return {
+        'status': 'ok',
+        'method': method,
+        'ip': request.ip
+    }
 
-@dp.get()
-@dp.get('index')
-async def index() -> HttpResponse:
+@router.get()
+@router.get('index')
+async def index():
     return HttpRedirect('/helloworld')
 
 
-@dp(AnyFilter)
-async def helloworld() -> HttpResponse:
-     return HttpResponse('Hello world!')
+@router(AnyFilter)
+async def helloworld():
+     return 'Hello world!'
 
 ```
 
-### Begin project
+### Начало проекта
 #### Standart
 ```bash
 slinn-admin create-project www
@@ -48,53 +55,28 @@ venv/bin/activate
 slinn create-app localhost host=localhost host=127.0.0.1
 ```
 
-Insert example into localhost/app.py file, then run `start.bat` or `start.sh` script
+Вставьте пример в `localhost/app.py`, затем запустите скрипт `start.bat` или `start.sh`
 
-> [!TIP]
-> Instead of use example, create app from template `slinn template example`
+Для настройки проекта нужно редактировать конфиг `slinn.toml`
 
-Expected output
-```
-Loading config...
-Apps: firstrun
-Debug mode enabled
-Smart navigation enabled
+Для настройки приложения нужно редактировать `%app%/config.toml`
 
-Starting server...
-HTTP server is available on http://localhost:8080/
-```
 
-To config project you should edit `./project.json`
-
-To config app you should edit `./%app%/config.json`
-
-#### Classic
-##### Unix-like (Linux, MacOS, FreeBSD...):
-```bash 
-mkdir helloworld 
-cd helloworld
-python3 -m venv venv
-venv/bin/activate
-```
-
-##### Windows:
-```batch
-mkdir helloworld 
-cd helloworld
-python3 -m venv venv
-venv\Scripts\activate
-```
-
-Insert example into `./example.py` and add following code:
-```
-from slinn import AsyncServer
-import asyncio
-asyncio.run(AsyncServer(dp).listen(Address(8080)))
-```
-then write `python example.py`
-
-Expected output
-```
-helloworld $ venv/bin/python example.py
-HTTP server is available on http://localhost:8080/
-```
+### Зависимости
+- Python 3.15 и выше (желательно без GIL)
+- `tomlkit` - управление конфигами
+- `orjson` - более быстрая работы с json
+- `babel` - локализация фреймворка
+- `pydantic` - валидация конфигов
+#### Опциональные зависимости
+##### Средства разработки фреймворка (`dev`):
+- `pytest` - тестирование фреймворка
+- `pytest-asyncio` - тестирование асинхнронных функций
+- `pytest-describe` - группировка тестов
+- `pytest-mock` - более удобное создание моков
+- `pytest-cov` - подсчет покрытия тестами
+- `taskipy` - упрощение ввода команд
+- `poetry` - сборка и публикация пакета на PyPI
+##### Асинхронные событийные циклы, которые могут улучшить производительность (`alt_loop`):
+- `winloop` - альтернативный асинхронный событийный цикл на Windows
+- `uvloop` - альтернативный асинхронный событийный цикл на Linux/MacOS

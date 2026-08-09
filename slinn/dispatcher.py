@@ -1,6 +1,8 @@
 from typing import Iterable, Any
 from slinn.net import ServerProtocol, RouterProtocol
 from slinn.net.address import Address
+from slinn.net.tcp import TcpServer, TcpRouterProtocol
+from slinn.net.http import HttpServer, HttpRouter
 from slinn import _
 from dataclasses import dataclass
 import asyncio
@@ -65,6 +67,9 @@ class Dispatcher:
         self.protocols = {}
         self.logger: logging.Logger = logger
 
+        self.register_protocol('tcp', TcpServer, TcpRouterProtocol)
+        self.register_protocol('http', HttpServer, HttpRouter)
+
     def register_protocol(
         self,
         protocol_name: str,
@@ -81,6 +86,7 @@ class Dispatcher:
                     tg.create_task(server.listen())
 
         for address in self.addresses:
+            print('  - ',repr(address.__class__))
             print(
                 _('{protocol} server on {transport_protocol}:{port} is available at:').format(
                     protocol = address.protocol.upper(),
@@ -88,6 +94,6 @@ class Dispatcher:
                     port = address.port,
                 )
             )
-            print(*[f'  - {url}' for url in repr(address).split()])
+            print(*[f'  - {url}' for url in repr(address).split()], sep='\n')
 
         asyncio.run(run_servers(), loop_factory=get_loop_factory())

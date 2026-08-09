@@ -1,11 +1,13 @@
 from slinn import root, Preprocessor
 from slinn.api.storage_api import StorageApi
 from slinn.tools.manage.misc import (
-    replace_all, add_quotes_to_list, packages
+    replace_all, add_quotes_to_list, packages, load_module
 )
 from slinn.tools.manage.defaults import APP_CONFIG
 from slinn.exceptions import AppExistsException, AppNotExistException
-from typing import Optional
+from slinn.net import RouterProtocol
+from slinn.api import AppAPI
+from typing import Optional, Iterator
 from pydantic import BaseModel
 import os
 import tomlkit
@@ -22,9 +24,9 @@ class ProjectConfig(BaseModel):
     class Project(BaseModel):
         name: str
         display_name: str
-        version: Optional[str] = '1.0.0'
-        description: Optional[str] = ''
-        debug: Optional[bool] = False
+        version: str = '1.0.0'
+        description: str = ''
+        debug: bool = False
     project: Project
 
     class Address(BaseModel):
@@ -33,46 +35,46 @@ class ProjectConfig(BaseModel):
         host: str
         domains: list[str]
         protocol: str
-        tls: Optional[bool] = False
+        tls: bool = False
     addresses: Optional[list[Address]]
 
     class App(BaseModel):
         name: str
-        enabled: Optional[bool] = True
-        debug_only: Optional[bool] = False
-        portmap: Optional[dict] = {}
-    apps: Optional[list[App]]
+        enabled: bool = True
+        debug_only: bool = False
+        portmap: dict = {}
+    apps: list[App] = []
 
     class TLS(BaseModel):
-        default_fullchain: Optional[bool] | str = False
-        default_privkey: Optional[bool] | str = False
+        default_fullchain: bool | str = False
+        default_privkey: bool | str = False
     tls: Optional[TLS]
 
     class Protocol(BaseModel):
         class TCP(BaseModel):
-            timeout: Optional[float] = 0.5
-            max_timeout: Optional[float] = 60
-            max_bytes_per_receive: Optional[int] = 65535
+            timeout: float = 0.5
+            max_timeout: float = 60
+            max_bytes_per_receive: int = 65535
         tcp: Optional[TCP]
 
         class HTTP(BaseModel):
-            max_header_size: Optional[int] = 8192
+            max_header_size: int = 8192
         http: Optional[HTTP]
 
         class WebSocket(BaseModel):
-            max_frame_size: Optional[int] = 65535
-            ping_interval: Optional[float] = 30
+            max_frame_size: int = 65535
+            ping_interval: float = 30
         websocket: Optional[WebSocket]
 
         class QUIC(BaseModel):
-            idle_timeout: Optional[float] = 60
+            idle_timeout: float = 60
         quic: Optional[QUIC]
     protocols: Optional[Protocol]
 
     class Logging(BaseModel):
-        level: Optional[str] = 'info'
-        format: Optional[str] = 'text'
-        output: Optional[str] = 'stdout'
+        level: str = 'info'
+        format: str = 'text'
+        output: str = 'stdout'
     logging: Optional[Logging]
 
 
@@ -86,12 +88,30 @@ class ProjectAPI:
             return ProjectConfig(**project_json)
 
     @staticmethod
+    def load_routers() -> Iterator[RouterProtocol]:
+        apps_files = {}
+        for app in ProjectAPI.get_config().apps:
+            app_config = AppAPI(app.name).config
+            for _rn in app_config.app.routers:
+                router_name = _rn.split('.')
+                app_file = f'{app.name}/{'/'.join(router_name[:-1])}.py'
+                if app_file in apps_files:
+                    apps_files[app_file].append(router_name[-1])
+                else:
+                    apps_files[app_file] = [router_name[-1]]
+        for app_file, routers_names in apps_files.items():
+            module = load_module(app_file)
+            for router_name in routers_names:
+                yield getattr(module, router_name)
+        # routers = get_routers([app['name'] for app in cfg['apps']], plugins_zip, plugins_dir, cfg.get('debug', False))
+
+    @staticmethod
     def update_config(updates: Optional[dict] = None) -> None:
         updates = updates or {}
         project_json = ProjectAPI.get_config()
         if 'apps' in updates:
             del updates['apps']
-        project_json['apps'] = [app for app in project_json.get('apps', []) if os.path.isdir(app)]
+        project_json.apps = [app for app in project_json.apps if os.path.isdir(app.name)]
         project_json.update(updates)
         #with open('project.json', 'w') as project:
         #    json.dump(project_json, project, indent=4)

@@ -26,7 +26,7 @@ def _(text: str) -> str:
         except Exception:
             return text
 
-__PD = datetime(2026, 8, 9)
+__PD = datetime(2026, 8, 10)
 
 VERSION = {
     'name': 'Slinn',
@@ -36,7 +36,7 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 7
+        'revision': 8
     },
     'dies_at': __PD + timedelta(days=180),
     'is_eap': True,
