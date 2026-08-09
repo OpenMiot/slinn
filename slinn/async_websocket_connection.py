@@ -31,10 +31,6 @@ class AsyncWebSocketConnection(WebSocketConnection):
     async def close(self, reason: str = ''):
         await self._send(WebSocketOpcodes.CLOSE, reason.encode())
 
-    @property
-    def closed(self) -> bool:
-        return self.request.connection.closed()
-
     async def send(self, payload: bytes | str):
         if isinstance(payload, bytes):
             await self.send_binary(payload)

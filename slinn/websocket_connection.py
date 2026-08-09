@@ -33,6 +33,10 @@ class WebSocketConnection:
         if not self.request.connection.closed():
             self.request.connection.close()
 
+    @property
+    def closed(self) -> bool:
+        return self.request.connection.closed()
+
     def settimeout(self, timeout: float):
         self.request.connection.settimeout(timeout)
 
