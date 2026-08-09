@@ -3,9 +3,8 @@
     <h1>Slinn</h1>
     <b>Slinn is an HTTP server framework</b><br/>
     <img src="https://img.shields.io/github/license/OpenMiot/slinn" alt="License"/>
-    <img src="https://img.shields.io/github/languages/top/OpenMiot/slinn" alt="GitHub top language"/><br/>
+    <img src="https://img.shields.io/github/languages/top/OpenMiot/slinn" alt="GitHub top language"/>
     <img src="https://img.shields.io/github/v/release/OpenMiot/slinn" alt="GitHub Release"/>
-    <img src="https://img.shields.io/github/repo-size/OpenMiot/slinn" alt="GitHub repo size"/>
     <img src="https://img.shields.io/github/stars/OpenMiot/slinn" alt="GitHub Repo stars"/>
 </div>
 
