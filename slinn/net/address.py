@@ -42,13 +42,14 @@ class Address:
     ):
         self.port = port
         self.transport_protocol = transport_protocol
-        self.domains = domains
+        self.domains = set(domains)
         self.protocol = protocol if protocol else self.transport_protocol.value.lower()
         self.tls = tls
         self.host = host
         self.family, sock_type, proto, cannon_name, sock_addr = socket.getaddrinfo(
             self.host, self.port, socket.AF_UNSPEC, socket.SOCK_DGRAM, 0, socket.AI_PASSIVE)[0]
         self.host = sock_addr[0]
+        self.domains.add(host)
 
     def __repr__(self):
         urls = set()

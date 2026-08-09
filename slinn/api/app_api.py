@@ -1,6 +1,13 @@
 from slinn.api.storage_api import StorageApi
 from typing import Optional
+from pydantic import BaseModel
 import tomllib
+
+
+class AppConfig(BaseModel):
+    class App(BaseModel):
+        routers: list[str]
+    app: App
 
 
 class AppAPI:
@@ -9,6 +16,6 @@ class AppAPI:
         self.root = StorageApi(self.path, package)
 
     @property
-    def config(self) -> dict:
+    def config(self) -> AppConfig:
         with self.root('config.toml', 'rb') as config:
-            return tomllib.load(config)
+            return AppConfig(**tomllib.load(config))

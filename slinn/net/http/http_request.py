@@ -2,7 +2,6 @@ from __future__ import annotations
 from slinn import FTDispatcher
 from slinn.net.tcp import TcpPipe
 from slinn.net.address import Address
-from slinn.utils import lazy_import
 from typing import Optional
 import urllib.parse
 import socket

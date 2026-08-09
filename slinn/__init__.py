@@ -1,27 +1,32 @@
 from datetime import datetime, timedelta
 from babel.dates import format_timedelta
 from locale import getdefaultlocale
-from functools import partial
+from contextvars import ContextVar
 from slinn import utils
 from slinn import exceptions
 import os
 import sys
 import inspect
 import warnings
-
-from slinn.dispatcher import Dispatcher
-
-__getattr__ = partial(utils.lazy_exporter, __name__, {
-    'IMiddleware': 'i_middleware',
-    'Preprocessor': 'preprocessor',
-    'HCDispatcher': 'hcdispatcher',
-    'FTDispatcher': 'ftdispatcher',
-    'Migration': 'migration',
-    'TemplateProtocol': 'template_protocol',
-})
+import gettext
 
 
-__PD = datetime(2026, 8, 8)
+root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
+
+ctx_translations: ContextVar = ContextVar("translations")
+
+def _(text: str) -> str:
+    try:
+        return ctx_translations.get().gettext(text)
+    except LookupError:
+        try:
+            lang = (getdefaultlocale()[0] or 'en_US').split('_')[0]
+            fallback_trans = gettext.translation('messages', localedir=root+'/locales', languages=[lang], fallback=True)
+            return fallback_trans.gettext(text)
+        except Exception:
+            return text
+
+__PD = datetime(2026, 8, 9)
 
 VERSION = {
     'name': 'Slinn',
@@ -31,7 +36,7 @@ VERSION = {
         'minor': 0,
         'patch': 0,
         'type': 'alpha',
-        'revision': 6
+        'revision': 7
     },
     'dies_at': __PD + timedelta(days=180),
     'is_eap': True,
@@ -43,8 +48,6 @@ make_version = lambda ver: f'{ver['major']}.{ver['minor']}.{ver['patch']}' + (
     f'{ver['type'][0]}{ver['revision']}' if ver['revision'] else '')
 version = f'{VERSION['name']} {VERSION['codename']} {make_version(VERSION['version'])}'
 
-root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
-
 if VERSION['is_eap'] and datetime.now() > VERSION['dies_at']:
     exit(f'Slinn`s EAP version has expired ({format_timedelta(datetime.now() - VERSION['dies_at'], locale=getdefaultlocale()[0])}).\n'
          f'Current version: {version}\n'
@@ -54,7 +57,15 @@ if VERSION['is_eap'] and datetime.now() > VERSION['dies_at']:
 
 if VERSION['may_incompatible']:
     warnings.warn(
-        message = 'Slinn`s EAP version may be incompatible with future releases. Don`t use it in prod',
+        message = _('Slinn`s EAP version may be incompatible with future releases. Don`t use it in prod'),
         category = exceptions.IncompatibleVersion,
-        skip_file_prefixes = (os.path.dirname(__name__),)
+        skip_file_prefixes = (os.path.dirname(__name__), )
     )
+
+from slinn.i_middleware import IMiddleware
+from slinn.preprocessor import Preprocessor
+from slinn.ftdispatcher import FTDispatcher
+from slinn.hcdispatcher import HCDispatcher
+from slinn.dispatcher import Dispatcher
+from slinn.migration import Migration
+from slinn.template_protocol import TemplateProtocol

@@ -4,7 +4,9 @@ from slinn.tools.manage.misc import (
     replace_all, add_quotes_to_list, packages
 )
 from slinn.tools.manage.defaults import APP_CONFIG
+from slinn.exceptions import AppExistsException, AppNotExistException
 from typing import Optional
+from pydantic import BaseModel
 import os
 import tomlkit
 import shutil
@@ -16,27 +18,72 @@ slinn_root = StorageApi(root)
 pp = Preprocessor()
 
 
-class SlinnApiException(Exception): ...
+class ProjectConfig(BaseModel):
+    class Project(BaseModel):
+        name: str
+        display_name: str
+        version: Optional[str] = '1.0.0'
+        description: Optional[str] = ''
+        debug: Optional[bool] = False
+    project: Project
 
+    class Address(BaseModel):
+        name: str
+        port: str
+        host: str
+        domains: list[str]
+        protocol: str
+        tls: Optional[bool] = False
+    addresses: Optional[list[Address]]
 
-class AppExistsException(SlinnApiException):
-    def __init__(self, app_name):
-        super().__init__(f'app named \'{app_name}\' exists')
+    class App(BaseModel):
+        name: str
+        enabled: Optional[bool] = True
+        debug_only: Optional[bool] = False
+        portmap: Optional[dict] = {}
+    apps: Optional[list[App]]
 
+    class TLS(BaseModel):
+        default_fullchain: Optional[bool] | str = False
+        default_privkey: Optional[bool] | str = False
+    tls: Optional[TLS]
 
-class AppNotExistException(SlinnApiException):
-    def __init__(self, app_name):
-        super().__init__(f'app named \'{app_name}\' does not exist')
+    class Protocol(BaseModel):
+        class TCP(BaseModel):
+            timeout: Optional[float] = 0.5
+            max_timeout: Optional[float] = 60
+            max_bytes_per_receive: Optional[int] = 65535
+        tcp: Optional[TCP]
+
+        class HTTP(BaseModel):
+            max_header_size: Optional[int] = 8192
+        http: Optional[HTTP]
+
+        class WebSocket(BaseModel):
+            max_frame_size: Optional[int] = 65535
+            ping_interval: Optional[float] = 30
+        websocket: Optional[WebSocket]
+
+        class QUIC(BaseModel):
+            idle_timeout: Optional[float] = 60
+        quic: Optional[QUIC]
+    protocols: Optional[Protocol]
+
+    class Logging(BaseModel):
+        level: Optional[str] = 'info'
+        format: Optional[str] = 'text'
+        output: Optional[str] = 'stdout'
+    logging: Optional[Logging]
 
 
 class ProjectAPI:
     @staticmethod
-    def get_config() -> dict:
+    def get_config() -> ProjectConfig:
         with open('slinn.toml', 'rb') as project:
             project_json = tomlkit.load(project)
             if 'apps' not in project_json.keys():
                 project_json['apps'] = []
-            return project_json
+            return ProjectConfig(**project_json)
 
     @staticmethod
     def update_config(updates: Optional[dict] = None) -> None:

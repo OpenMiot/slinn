@@ -11,7 +11,8 @@ requires-python = ">=3.15"
 dependencies = [
     "tomlkit==0.15.1",
     "orjson>=3.11.9",
-    "babel>=2.18.0"
+    "babel>=2.18.0",
+    "pydantic>=2.14.0b1"
 ]
 authors = [
     { name = "Miot Project", email = "openmiot@gmail.com"},
@@ -26,6 +27,8 @@ dev = [
     "pytest-describe>=3.2.0",
     "pytest-mock>=3.15.1",
     "pytest-cov>=7.1.0",
+    "taskipy>=1.14.1",
+    "poetry>=2.4.1"
 ]
 alt_loop = [
     "uvloop>=0.22.1; sys_platform != 'win32'",
@@ -50,3 +53,14 @@ addopts = "-v --cov=slinn --cov-report=html --cov-fail-under=80"
 filterwarnings = [
     "ignore::UserWarning"
 ]
+
+[tool.taskipy.settings]
+cwd = "."
+
+[tool.taskipy.tasks]
+i18n_update  = """pybabel extract -o slinn/locales/messages.pot . &&\
+                pybabel update -i slinn/locales/messages.pot -d slinn/locales"""
+i18n_compile = "pybabel compile -d slinn/locales"
+build = "poetry build"
+publish = "poetry publish"
+

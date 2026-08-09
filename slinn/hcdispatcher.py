@@ -1,5 +1,6 @@
 from .exceptions import EndpointNotFound
-from . import Endpoint, AnyFilter
+from slinn.net import Endpoint
+from slinn.net.http.filters import AnyFilter
 from typing import Callable
 
 
