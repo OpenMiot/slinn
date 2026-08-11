@@ -113,8 +113,8 @@ class StorageApi:
         else:
             return f"{self.package}/{self.root}/{path.lstrip('/')}".replace('\\', '/').replace('//', '/').rstrip('/.').strip('/').replace('/./', '/')
 
-    def substorage(self, path: str) -> 'Storage':
-        return Storage(self._get_path(path, add_package_path=False), self.package, zip_file=self._package_zip if self._package_zip else False)
+    def substorage(self, path: str) -> 'StorageApi':
+        return StorageApi(self._get_path(path, add_package_path=False), self.package, zip_file=self._package_zip if self._package_zip else False)
 
 
 class StorageIO:

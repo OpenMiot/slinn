@@ -1,13 +1,5 @@
-from slinn.utils import lazy_exporter
-from functools import partial
-
-
-__getattr__ = partial(lazy_exporter, __name__, {
-    'TcpClient': 'tcp_client',
-    'TcpFilter': 'tcp_filter',
-    'TcpPipe': 'tcp_pipe',
-    'TcpRequest': 'tcp_request',
-    'TcpResponse': 'tcp_response',
-    'TcpRouterProtocol': 'tcp_router_protocol',
-    'TcpServer': 'tcp_server',
-})
+#lazy from slinn.net.tcp.tcp_client import TcpClient
+#lazy from slinn.net.tcp.tcp_filter import TcpFilter
+lazy from slinn.net.tcp.tcp_pipe import TcpPipe
+lazy from slinn.net.tcp.tcp_router_protocol import TcpRouterProtocol
+lazy from slinn.net.tcp.tcp_server import TcpServer

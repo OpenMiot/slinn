@@ -5,17 +5,17 @@ import logging
 import ssl
 
 
-class ServerProtocol(Protocol):
+class ServerProtocol[TRouterProtocol: RouterProtocol](Protocol):
     def __init__(
         self,
         address: Address,
         protocols_config: dict[str, dict[str, Any]],
-        routers: Iterable[RouterProtocol],
+        routers: Iterable[TRouterProtocol],
         logger: logging.Logger,
         ssl_context: Optional[ssl.SSLContext]
     ): ...
 
-    async def reload(self, *routers: RouterProtocol) -> None: ...
+    async def reload(self, *routers: TRouterProtocol) -> None: ...
 
     async def listen(self) -> None: ...
 

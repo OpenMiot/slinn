@@ -1,8 +1,9 @@
 from slinn.preprocessor import Preprocessor
-from slinn import slinn_root
+from slinn import root
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.help_generator import help_generator
+from slinn.api import StorageApi
 import venv
 import sys
 import os
@@ -14,9 +15,10 @@ import stat
 
 root_command = Command()
 pp = Preprocessor()
+slinn_root = StorageApi(root)
 
 
-@root_command.subcommand('create-project', ('path', ))
+@root_command.subcommand('init', ('path', ))
 def create_command(args: dict):
     def _install_scripts(scripts: dict[str, str], path: str):
         def _install_script(script: tuple[str, str]):
@@ -118,7 +120,7 @@ def update_command(args):
 @root_command.subcommand('help')
 def help_command():
     print(help_generator('Slinn Admin', sys.argv[0], {
-        'create-project {project`s name}': 'create project',
+        'init {project`s name}': 'create project',
         'update-project {project`s name}': 'update project',
         'help': 'display this message',
         'version': 'display slinn`s version',

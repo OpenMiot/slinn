@@ -1,7 +1,0 @@
-from slinn import ApiDispatcher
-from . import app
-
-
-dp = ApiDispatcher(<% hosts %>)
-
-# Write your code down here

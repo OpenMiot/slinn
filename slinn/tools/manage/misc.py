@@ -16,6 +16,7 @@ import sys
 import zipfile
 import fnmatch
 import itertools
+import re
 
 
 slinn_root = StorageApi(root)
@@ -235,6 +236,9 @@ def plugins_sorted(plugins, pkgs):
                 exit(1)
         _plugins[key] = plugin
     return _plugins
+
+def validate_name(name: str) -> bool:
+    return bool(re.match(r'^[a-zA-Z0-9_-]+$', name))
 
 
 arg_parse: Callable[[str], str] = lambda arg: (

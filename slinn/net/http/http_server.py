@@ -92,7 +92,7 @@ class HttpServer(ServerProtocol):
                             data += b
                             if not b:
                                 break
-                        except (asyncio.CancelledError, TimeoutError):
+                        except asyncio.CancelledError, TimeoutError:
                             break
                     data = data.split(b'\r\n\r\n')
                     header = data[0].decode()

@@ -1,16 +1,20 @@
-from slinn import root, Preprocessor
-from slinn.api.storage_api import StorageApi
+from slinn import root, Preprocessor, _, Dispatcher
 from slinn.tools.manage.misc import (
-    replace_all, add_quotes_to_list, packages, load_module
+    replace_all, add_quotes_to_list, packages, load_module, load_imports,
+    load_migrations, plugins_sorted, load_template, validate_name
 )
+from slinn.tools.manage.colorcodes import *
+from slinn.net.address import AddressConfigFactory
 from slinn.tools.manage.defaults import APP_CONFIG
-from slinn.exceptions import AppExistsException, AppNotExistException
+from slinn.api.exceptions import AppExistsException, AppNotExistException, AppNameIsNotSpecified, AppNameIsNotValid
 from slinn.net import RouterProtocol
-from slinn.api import AppAPI
+from slinn.api import AppApi, StorageApi
 from typing import Optional, Iterator
 from pydantic import BaseModel
+import logging
 import os
 import tomlkit
+import tomlkit.items
 import shutil
 import sys
 import slinn
@@ -36,7 +40,7 @@ class ProjectConfig(BaseModel):
         domains: list[str]
         protocol: str
         tls: bool = False
-    addresses: Optional[list[Address]]
+    addresses: list[Address] = []
 
     class App(BaseModel):
         name: str
@@ -55,21 +59,21 @@ class ProjectConfig(BaseModel):
             timeout: float = 0.5
             max_timeout: float = 60
             max_bytes_per_receive: int = 65535
-        tcp: Optional[TCP]
+        tcp: Optional[TCP] = TCP()
 
         class HTTP(BaseModel):
             max_header_size: int = 8192
-        http: Optional[HTTP]
+        http: Optional[HTTP] = HTTP()
 
         class WebSocket(BaseModel):
             max_frame_size: int = 65535
             ping_interval: float = 30
-        websocket: Optional[WebSocket]
+        websocket: Optional[WebSocket] = WebSocket()
 
         class QUIC(BaseModel):
             idle_timeout: float = 60
-        quic: Optional[QUIC]
-    protocols: Optional[Protocol]
+        quic: Optional[QUIC] = QUIC()
+    protocols: Protocol = Protocol()
 
     class Logging(BaseModel):
         level: str = 'info'
@@ -78,71 +82,136 @@ class ProjectConfig(BaseModel):
     logging: Optional[Logging]
 
 
-class ProjectAPI:
-    @staticmethod
-    def get_config() -> ProjectConfig:
-        with open('slinn.toml', 'rb') as project:
-            project_json = tomlkit.load(project)
-            if 'apps' not in project_json.keys():
-                project_json['apps'] = []
-            return ProjectConfig(**project_json)
+class ProjectApi:
+    def __init__(self, path: str):
+        self.path = path
+        self.storage = StorageApi(path)
+        self.config: ProjectConfig = None
 
-    @staticmethod
-    def load_routers() -> Iterator[RouterProtocol]:
-        apps_files = {}
-        for app in ProjectAPI.get_config().apps:
-            app_config = AppAPI(app.name).config
-            for _rn in app_config.app.routers:
-                router_name = _rn.split('.')
-                app_file = f'{app.name}/{'/'.join(router_name[:-1])}.py'
-                if app_file in apps_files:
-                    apps_files[app_file].append(router_name[-1])
+    def run(self):
+        pkgs = packages()
+        pkgs['plugins'] = plugins_sorted(pkgs['plugins'], pkgs)
+
+        routers = list(*app.load_routers() for app in self.load_apps())
+        if not routers:
+            yield _('Routers not found. Check your apps, packages and ./project.json'), RED
+            return
+
+        yield GRAY, False
+        if self.config.apps:
+            yield _('Apps: {apps}').format(apps=', '.join([
+                app.name if not app.debug_only or self.config.project.debug else f'[{STRIKE}{app.name}{NONSTRIKE}]'
+                for app in self.config.apps
+            ]))
+        if pkgs['plugins']:
+            yield _('Plugins: {plugins}').format(plugins=', '.join([
+                plugin['displayName'] if plugin['enabled'] else f'[{STRIKE}{plugin['displayName']}{NONSTRIKE}]'
+                for plugin in pkgs['plugins'].values()
+            ]))
+        yield _('Debug mode {status}').format(status=_('enabled') if self.config.project.debug else _('disabled'))
+        yield RESET
+        yield _('Starting server...')
+
+        # logging.basicConfig(filename=f'{cfg.project.name}.journal.log', level=logging.DEBUG)
+        logging.basicConfig(level=logging.DEBUG)
+        addresses = {}
+        for address in self.config.addresses:
+            addresses[address.name] = AddressConfigFactory.get_address(**address.model_dump())
+        for app in self.config.apps:
+            for port, address_name in app.portmap:
+                ...
+        dispatcher = Dispatcher(
+            addresses=addresses.values(),
+            routers=routers,
+            protocols_config=self.config.protocols.model_dump(),
+            logger=logging.getLogger(self.config.project.name)
+        )
+
+        dispatcher.start()
+        dispatcher.print_servers()
+        yield _('Press CTRL+C to quit'), BOLD
+        dispatcher.join()
+
+    def load_config(self):
+        with self.storage('slinn.toml', 'r') as rfile:
+            self.config = ProjectConfig(**tomlkit.loads(rfile.read().replace('\r', '')))
+
+    def save_config(self):
+        def _deep_update(mapping, updates):
+            if isinstance(mapping, (list, tomlkit.items.AoT)) and isinstance(updates, list):
+                for i, item in enumerate(updates):
+                    if i < len(mapping):
+                        if isinstance(item, dict):
+                            _deep_update(mapping[i], item)
+                        else:
+                            mapping[i] = item
+                    else:
+                        if isinstance(item, dict):
+                            new_table = tomlkit.table()
+                            _deep_update(new_table, item)
+                            mapping.append(new_table)
+                        else:
+                            mapping.append(item)
+                while len(mapping) > len(updates):
+                    mapping.pop()
+                return mapping
+
+            for key, value in updates.items():
+                if key in ('portmap', ) and isinstance(value, dict):
+                    inline_table = tomlkit.inline_table()
+                    inline_table.update(value)
+                    mapping[key] = inline_table
+                    continue
+
+                current_val = mapping.get(key)
+                if isinstance(value, dict) and isinstance(current_val,
+                                                          (dict, tomlkit.items.Table, tomlkit.TOMLDocument)):
+                    _deep_update(current_val, value)
+                elif isinstance(value, list) and isinstance(current_val, (list, tomlkit.items.AoT)):
+                    _deep_update(current_val, value)
                 else:
-                    apps_files[app_file] = [router_name[-1]]
-        for app_file, routers_names in apps_files.items():
-            module = load_module(app_file)
-            for router_name in routers_names:
-                yield getattr(module, router_name)
+                    mapping[key] = value
+            return mapping
+
+        toml_config: tomlkit.TOMLDocument = None
+        with self.storage('slinn.toml', 'r') as rfile:
+            toml_config = tomlkit.loads(rfile.read().replace('\r', ''))
+        new_config = self.config.model_dump()
+        with self.storage('slinn.toml', 'w') as wfile:
+            wfile.write(tomlkit.dumps(_deep_update(toml_config, new_config)).replace('\r', ''))
+
+    def load_apps(self) -> Iterator[AppApi]:
+        for app in self.config.apps:
+            if (app.debug_only and not self.config.project.debug) or not os.path.isdir(app.name):
+                continue
+            app_api = AppApi(app.name, self)
+            app_api.load_config()
+            yield app_api
+
         # routers = get_routers([app['name'] for app in cfg['apps']], plugins_zip, plugins_dir, cfg.get('debug', False))
 
-    @staticmethod
-    def update_config(updates: Optional[dict] = None) -> None:
-        updates = updates or {}
-        project_json = ProjectAPI.get_config()
-        if 'apps' in updates:
-            del updates['apps']
-        project_json.apps = [app for app in project_json.apps if os.path.isdir(app.name)]
-        project_json.update(updates)
-        #with open('project.json', 'w') as project:
-        #    json.dump(project_json, project, indent=4)
-
-    @staticmethod
-    def create_app(name: str, hosts: tuple[str, ...] = (), *, init: bool = True) -> None:
-        ensure_appname = replace_all(name, '-&$#!@%^().,', '_')
-        if os.path.isdir(ensure_appname):
+    def create_app(self, name: str, *, init: bool = True) -> None:
+        if not name:
+            raise AppNameIsNotSpecified()
+        if not validate_name(name):
+            raise AppNameIsNotValid(name)
+        if os.path.isdir(name):
             raise AppExistsException(name)
-        os.mkdir(ensure_appname)
+
+        app_storage = self.storage.substorage(name)
         if init:
-            with open(f'{ensure_appname}/__init__.py', 'w') as fw:
-                with slinn_root('/defaults/app/__init__.py.template', 'r') as fr:
-                    fw.write(pp.preprocess(fr.read(), {
-                        'appname': ensure_appname
-                    }))
-            with open(f'{ensure_appname}/app.py', 'w') as fw:
-                with slinn_root('/defaults/app/app.py.template', 'r') as fr:
-                    fw.write(pp.preprocess(fr.read(), {
-                        'hosts': ', '.join(add_quotes_to_list(hosts))
-                    }))
-            with open(f'{ensure_appname}/config.json', 'w') as f:
-                json.dump(APP_CONFIG, f, indent=4)
-        with open('project.json', 'r') as f:
-            fj = json.load(f)
-        if 'apps' not in fj.keys():
-            fj['apps'] = []
-        fj['apps'].insert(0, ensure_appname)
-        with open('project.json', 'w') as f:
-            json.dump(fj, f, indent=4)
-        ProjectAPI.update_config()
+            with (app_storage('__init__.py', 'w') as wfile,
+                  slinn_root('/defaults/app/__init__.template.py', 'r') as rfile):
+                wfile.write(rfile.read().format(name=name))
+            with (app_storage('app.py', 'w') as wfile,
+                  slinn_root('/defaults/app/app.template.py', 'r') as rfile):
+                wfile.write(rfile.read())
+            with (app_storage('config.toml', 'w') as wfile,
+                  slinn_root('/defaults/app/config.template.toml', 'r') as rfile):
+                wfile.write(rfile.read())
+
+        self.config.apps.append(ProjectConfig.App(name=name))
+        self.save_config()
 
     @staticmethod
     def create_app_from_template(name: str, template_name: str, path: str = '.',
@@ -215,14 +284,6 @@ class ProjectAPI:
         ProjectAPI.update_config({'debug': mode})
 
     @staticmethod
-    def get_apps() -> set[str]:
-        return set(ProjectAPI.get_config()['apps'])
-
-    @staticmethod
-    def get_name() -> str:
-        return ProjectAPI.get_config()['name']
-
-    @staticmethod
     def is_ssl() -> bool:
         config = ProjectAPI.get_config()
         return 'ssl' in config and \
@@ -256,9 +317,9 @@ class ProjectAPI:
         return packages()['plugins']
 
     @staticmethod
-    def get_plugin_storage(key) -> Storage:
+    def get_plugin_storage(key) -> StorageApi:
         plugin = packages()['plugins'][key]
-        return Storage('', zip_file=f'spm_packages/Plugins/{key}.zip') if plugin['zip'] else Storage(f'spm_packages/Plugins/{key}')
+        return StorageApi('', zip_file=f'spm_packages/Plugins/{key}.zip') if plugin['zip'] else Storage(f'spm_packages/Plugins/{key}')
 
 
 if __name__ == '__main__':

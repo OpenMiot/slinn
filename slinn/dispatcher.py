@@ -1,10 +1,11 @@
-from typing import Iterable, Any
+from typing import Iterable, Any, Optional
 from slinn.net import ServerProtocol, RouterProtocol
 from slinn.net.address import Address
 from slinn.net.tcp import TcpServer, TcpRouterProtocol
 from slinn.net.http import HttpServer, HttpRouter
 from slinn import _
 from dataclasses import dataclass
+import threading
 import asyncio
 import logging
 import sys
@@ -67,6 +68,8 @@ class Dispatcher:
         self.protocols = {}
         self.logger: logging.Logger = logger
 
+        self._main_thread: threading.Thread = threading.main_thread()
+
         self.register_protocol('tcp', TcpServer, TcpRouterProtocol)
         self.register_protocol('http', HttpServer, HttpRouter)
 
@@ -79,12 +82,29 @@ class Dispatcher:
         self.protocols[protocol_name] = Protocol(protocol_name, server_class, router_class)
 
     def start(self):
-        async def run_servers():
-            async with asyncio.TaskGroup() as tg:
-                for address in self.addresses:
-                    server = server_factory(address, self.protocols, self.routers, self.protocols_config, self.logger)
-                    tg.create_task(server.listen())
+        def run_servers():
+            event_loop = get_loop_factory()()
+            asyncio.set_event_loop(event_loop)
+            tasks = set()
+            for address in self.addresses:
+                server = server_factory(address, self.protocols, self.routers, self.protocols_config, self.logger)
+                tasks.add(event_loop.create_task(server.listen()))
+            try:
+                event_loop.run_forever()
+            finally:
+                for task in tasks:
+                    task.cancel()
+                event_loop.run_until_complete(event_loop.shutdown_asyncgens())
+                event_loop.close()
+                raise
 
+        self._main_thread = threading.Thread(target=run_servers, daemon=True)
+        self._main_thread.start()
+
+    def join(self):
+        self._main_thread.join()
+
+    def print_servers(self):
         for address in self.addresses:
             print('  - ',repr(address.__class__))
             print(
@@ -95,5 +115,3 @@ class Dispatcher:
                 )
             )
             print(*[f'  - {url}' for url in repr(address).split()], sep='\n')
-
-        asyncio.run(run_servers(), loop_factory=get_loop_factory())

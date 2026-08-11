@@ -3,6 +3,7 @@ from slinn.net.address import Address
 from slinn.net.tcp import TcpPipe, TcpRouterProtocol
 from slinn.exceptions import SocketClosed
 from slinn.utils import optional
+from slinn import _
 import logging
 import asyncio
 import socket
@@ -36,9 +37,9 @@ class TcpServer:
         self.logger.info(f'Server {self.address.host}:{self.address.port} has reloaded')
 
     async def listen(self) -> None:
-        loop = asyncio.get_running_loop()
+        event_loop = asyncio.get_running_loop()
         self.server_pipe = TcpPipe(
-            loop,
+            event_loop,
             family = self.address.family,
             type = socket.SOCK_STREAM,
             ssl_context = self.ssl_context,
@@ -53,18 +54,23 @@ class TcpServer:
             exit(13)
         self.server_pipe.listen()
         self.logger.info(f'Server started to listening {self.address.host}:{self.address.port}')
-        while True:
-            try:
-                client_pipe, client_address = await self.server_pipe.accept()
-                loop.create_task(self.handle_pipe(client_pipe, client_address, {}))
-            except KeyboardInterrupt:
-                await self.shutdown()
-                raise
-            except (BlockingIOError, socket.timeout):
-                await asyncio.sleep(0.005)
-            except Exception as e:
-                self.logger.warning(f'During handling exception, an {e} has occurred', exc_info=True)
-                await self.reload(*self.routers)
+        try:
+            while True:
+                try:
+                    client_pipe, client_address = await self.server_pipe.accept()
+                    event_loop.create_task(self.handle_pipe(client_pipe, client_address, {}))
+                except KeyboardInterrupt:
+                    raise
+                except BlockingIOError, socket.timeout:
+                    await asyncio.sleep(0.005)
+                except Exception as e:
+                    self.logger.warning(
+                        _('During handling exception, an {exception} has occurred').format(exception = e), exc_info=True
+                    )
+                    await self.reload(*self.routers)
+        except KeyboardInterrupt:
+            await self.shutdown()
+            raise
 
 
     async def handle_pipe(
@@ -124,3 +130,4 @@ class TcpServer:
         if not self.server_pipe.closed:
             self.server_pipe.close()
         self.logger.info(f'Server {self.address.host}:{self.address.port} has shut down')
+        asyncio.get_running_loop().stop()

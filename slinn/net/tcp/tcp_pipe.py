@@ -94,7 +94,7 @@ class TcpPipe(PipeProtocol):
         await self.do_handshake()
         try:
             self._transport.write(data)
-        except (OSError, ConnectionResetError):
+        except OSError, ConnectionResetError:
             self.close()
             raise SocketClosed('socket closed')
 

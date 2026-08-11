@@ -13,7 +13,7 @@ import importlib.util
 rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
 
 
-def optional(func, *p, **k) -> Any | Coroutine | AsyncIterable:
+def optional(func, *p, **k) -> Any:
     params = inspect.signature(func).parameters
     args, kwargs = [], {}
     for i, positional in enumerate(p):
@@ -77,8 +77,8 @@ def min_restartswith_size(text: str, reg: str) -> int:
     return len(smallest) if smallest is not None else 2147483647
 
 
-def representate(obj: any) -> bytes:
-    def __representate_str(obj: any) -> str | dict | list | int | float | bool:
+def representate(obj: Any) -> bytes:
+    def __representate_str(obj: Any) -> str | dict | list | int | float | bool:
         if isinstance(obj, dict):
             return {key: __representate_str(obj[key]) for key in obj.keys()}
         if type(obj) in (list, tuple, set):
@@ -105,20 +105,3 @@ def representate(obj: any) -> bytes:
     if type(representated) in (str, int, float, bool):
         return str(representated).encode()
     return orjson.dumps(representated)
-
-
-def lazy_exporter(module, submodules, name):
-    if name not in submodules:
-        raise AttributeError(f"module {__name__} has no attribute {name}")
-    mod = importlib.import_module(f"{module}.{submodules[name]}")
-    return getattr(mod, name)
-
-
-def lazy_import(name):
-    spec = importlib.util.find_spec(name)
-    loader = importlib.util.LazyLoader(spec.loader)
-    spec.loader = loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    loader.exec_module(module)
-    return module

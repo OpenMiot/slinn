@@ -43,7 +43,6 @@ async def index():
 @router(AnyFilter)
 async def helloworld():
      return 'Hello world!'
-
 ```
 
 ### Начало проекта
