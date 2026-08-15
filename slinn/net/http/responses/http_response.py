@@ -1,7 +1,7 @@
 from . import HttpHeaderResponse, HttpChunkResponse
 from slinn.net.http import HttpHeaders
 from slinn.utils import representate
-from typing import Any, Optional
+from typing import Any
 import gzip
 
 
@@ -13,7 +13,7 @@ class HttpResponse(HttpHeaderResponse, HttpChunkResponse):
     def __init__(
         self,
         payload: Any,
-        data: Optional[HttpHeaders] = None,
+        data: HttpHeaders | None = None,
         status: str = '200 OK',
         content_type: str = 'text/plain; charset=utf-8',
         use_gzip: bool = True,

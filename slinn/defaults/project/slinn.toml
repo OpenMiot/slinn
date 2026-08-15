@@ -9,11 +9,7 @@ debug = true
 name = "main"
 port = "8080/tcp"
 host = "localhost"
-domains = [
-    "localhost",
-    "127.0.0.1",
-    "::1"
-]
+domains = ["localhost", "127.0.0.1", "::1"]
 protocol = "http"
 tls = false
 
@@ -21,9 +17,7 @@ tls = false
 name = "firstrun"
 enabled = true
 debug_only = true
-portmap = {
-    80 = "main"
-}
+portmap = {80 = "main"}
 
 [tls]
 default_fullchain = false
@@ -31,18 +25,20 @@ default_privkey = false
 
 [protocols.tcp]
 timeout = 0.5
-max_timeout = 60
+max_timeout = 60.0
 max_bytes_per_receive = 65535
 
 [protocols.http]
 max_header_size = 8192
+max_requests = 1000
+http_codes_router = 'hc_routing.router'
 
 [protocols.websocket]
 max_frame_size = 65535
-ping_interval = 30
+ping_interval = 30.0
 
 [protocols.quic]
-idle_timeout = 60
+idle_timeout = 60.0
 
 [logging]
 level = "info"

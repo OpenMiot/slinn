@@ -52,7 +52,7 @@ def create_command(args: dict):
         print(f'{BLUE}{apppath} has already existed{RESET}')
     shutil.copyfile(slinn.root + '/defaults/project/manage.py', f'{apppath}/manage.py')
     shutil.copyfile(slinn.root + '/defaults/project/htrf.py', f'{apppath}/htrf.py')
-    shutil.copyfile(slinn.root + '/defaults/project/hcdp.py', f'{apppath}/hcdp.py')
+    shutil.copyfile(slinn.root + '/defaults/project/hc_routing.py', f'{apppath}/hc_routing.py')
     shutil.copyfile(slinn.root + '/defaults/project/project.json', f'{apppath}/project.json')
     venv.create(f'{apppath}/venv', with_pip=True)
     binaries_dir = f'{apppath}/venv/Scripts' \
@@ -63,7 +63,10 @@ def create_command(args: dict):
                    f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
     os.makedirs(packages_dir, exist_ok=True)
     _install_modules(
-        ('slinn', 'dexir', 'wheel', 'setuptools'),
+        (
+            'slinn', 'dexir', 'wheel', 'pybind11', 'scikit-build-core', 'tomlkit', 'orjson', 'babel', 'pydantic',
+            'uvloop', 'winloop'
+        ),
         packages_dir
     )
     _install_scripts(

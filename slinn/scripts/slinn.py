@@ -1,17 +1,9 @@
-from slinn.api.exceptions import (
-    AppExistsException, AppNameIsNotValidException, TemplateNotExistsException, SlinnApiException
-)
+from slinn.api.exceptions import SlinnApiException
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.help_generator import help_generator
-from slinn.tools.manage.misc import (
-    add_quotes_to_list, packages, load_imports,
-    load_migrations, plugins_sorted, load_template
-)
 from slinn import _
-from slinn.api import ProjectApi, StorageApi, AppApi, ProjectConfig
-from typing import Optional
-import orjson
+from slinn.api import ProjectApi, StorageApi
 import slinn
 import asyncio
 import sys
@@ -70,7 +62,6 @@ async def apply_all_migrations():
         ), GREEN
     except SlinnApiException as e:
         return str(e).capitalize(), RED
-
 
 @root_command.subcommand('help')
 async def help_command():

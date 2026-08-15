@@ -45,7 +45,7 @@ class HttpHeaderResponse(HttpChunkResponse):
         attributes = attributes or {}
         attributes.update({
             'Domain': domain,
-            'Expires': expires.strftime('%a, %d %b %Y %H:%M:%S GMT') if expires else None,
+            'Expires': slinn.utils.convert_datetime(expires) if expires else None,
             'HttpOnly': http_only,
             'Max-Age': max_age,
             'Partitioned': partitioned,
@@ -72,4 +72,10 @@ class HttpHeaderResponse(HttpChunkResponse):
             'Connection',
             recv_headers.get('Connection', 'close' if recv_headers.version is HttpVersion.H1 else 'Keep-Alive')
         )
+        self.headers.set(
+            'Date',
+            slinn.utils.convert_datetime(datetime.datetime.now(datetime.UTC))
+        )
+        if 'chunked' in self.headers.get('Transfer-Encoding', ''):
+            self.headers.delete('Content-Length')
         return self.headers.make()

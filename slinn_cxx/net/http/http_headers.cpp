@@ -139,7 +139,6 @@ std::string HttpHeaders::normalizeValue(const py::object& value) const{
     return representate(value).attr("decode")().cast<std::string>();
 }
 
-
 HttpHeaders HttpHeaders::parse(const std::string& rawHttp){
     std::string_view http = rawHttp;
 
@@ -147,14 +146,14 @@ HttpHeaders HttpHeaders::parse(const std::string& rawHttp){
     std::string_view _startLine = http.substr(0, pos);
     size_t methodPos =  _startLine.find(" ");
     size_t pathPos = _startLine.find(" ", methodPos + 1);
-
+    
     HttpHeaders headers(
-        stdStringToHttpVersion(_startLine.substr(pathPos, pos))
+        stdStringToHttpVersion(_startLine.substr(pathPos+1, pos))
     );
     std::string _method = std::string(_startLine.substr(0, methodPos));
     toUpperCase(_method);
     headers._add(":method", _method);
-    headers._add(":path", std::string(_startLine.substr(methodPos+1, pathPos-2)));
+    headers._add(":path", std::string(_startLine.substr(methodPos+1, pathPos-4)));
 
     size_t current_pos = pos + 2;
     while (current_pos < http.size()) {
@@ -168,9 +167,6 @@ HttpHeaders HttpHeaders::parse(const std::string& rawHttp){
         if (colon_pos != std::string::npos) {
             std::string_view key = line.substr(0, colon_pos);
             std::string_view value = line.substr(colon_pos + 1);
-            
-            // Только здесь мы делаем одну аллокацию для ключа (если нужно)
-            // или вообще работаем с view, если мы знаем, что ключ не изменится
             headers._add(std::string(strip(key)), std::string(strip(value)));
         }
 

@@ -2,11 +2,19 @@
 <div align="center">
     <h1>Slinn</h1>
     <b>Slinn - универсальная сетевая платформа на Python</b><br/>
-    <img src="https://img.shields.io/github/license/OpenMiot/slinn" alt="License"/>
-    <img src="https://img.shields.io/github/languages/top/OpenMiot/slinn" alt="GitHub top language"/>
+    <img src="https://github.com/openmiot/slinn/actions/workflows/tests.yml/badge.svg?event=push&branch=flux" alt="Tests"/>
+    <img src="https://img.shields.io/pypi/pyversions/slinn.svg?color=%2334D058" alt="Supported Python versions">
     <img src="https://img.shields.io/github/v/release/OpenMiot/slinn" alt="GitHub Release"/>
     <img src="https://img.shields.io/github/stars/OpenMiot/slinn" alt="GitHub Repo stars"/>
 </div>
+
+---
+
+Документация: https://openmiot.github.io/slinn/
+
+Исходный код: https://github.com/OpenMiot/slinn/
+
+---
 
 ### Преимущества Slinn
 
@@ -18,20 +26,21 @@
 
 ### Простой пример синтаксиса
 ```python
-from slinn.net.http import HttpRouter, HttpRequest
+from slinn.net.http import HttpRouter
 from slinn.net.http.responses import HttpRedirect
 from slinn.net.http.filters import AnyFilter
+from slinn.net.address import Address
 
 
 router = HttpRouter()
 
 
 @router.get('api/<str method>')
-async def api(request: HttpRequest, method: str):
+async def api(client_address: Address, method: str):
     return {
         'status': 'ok',
         'method': method,
-        'ip': request.ip
+        'ip': client_address.host
     }
 
 @router.get()
@@ -42,12 +51,10 @@ async def index():
 
 @router(AnyFilter)
 async def helloworld():
-     return 'Hello world!'
-
+    return 'Hello world!'
 ```
 
 ### Начало проекта
-#### Standart
 ```bash
 slinn-admin create-project www
 cd www

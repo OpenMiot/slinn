@@ -6,8 +6,9 @@ from slinn.net.http.exceptions import HttpHeaderAlreadySent
 from slinn.net.http.responses import HttpResponse, HttpChunkResponse, HttpHeaderResponse
 from slinn.net.address import Address
 from slinn.net import ServerProtocol, FilterProtocol, Endpoint
+from slinn.tools.manage.misc import load_module
 from slinn.utils import optional
-from slinn import _
+from slinn import _, HCRouter
 import functools
 import logging
 import ssl
@@ -60,19 +61,24 @@ class HttpServer(ServerProtocol):
 
         self._router = HttpServer._TcpRouter()
         self._server = TcpServer(
-            address=address,
-            protocols_config=protocols_config,
-            routers=(self._router, ),
-            logger=logger,
-            ssl_context=ssl_context
+            address = address,
+            protocols_config = protocols_config,
+            routers = (self._router, ),
+            logger = logger,
+            ssl_context = ssl_context
         )
 
         self.http_config = protocols_config.get('http', {})
 
-        self._max_requests = self.http_config.get('max_requests', 1000)
-        self._max_header_size = self.http_config.get('max_header_size', 8192)
+        self._max_requests = self.http_config['max_requests']
+        self._max_header_size = self.http_config['max_header_size']
 
-        self.listen = self._server.listen
+        self._http_codes_router = HCRouter()
+        if 'http_codes_router' in self.http_config:
+            *mod, obj =  self.http_config['http_codes_router'].split('.')
+            self._http_codes_router = getattr(load_module('/'.join(mod)+'.py'), obj)
+
+        #self.listen = self._server.listen
         self.handle_pipe = self._server.handle_pipe
         self.shutdown = self._server.shutdown
 
@@ -133,71 +139,83 @@ class HttpServer(ServerProtocol):
                     headers = headers,
                     body = body
                 )
-                """for router in self.routers:
+                for router in self.routers:
                     if optional(router.check, **meta):
                         endpoints += router.endpoints
                 sizes = [
                     await optional(endpoint.filter.size, **meta)
                     for endpoint in endpoints
                 ]
-                if not sizes:
-                    continue
-                endpoint = endpoints[sizes.index(max(sizes))]
-                if max(sizes) < 0:
-                    continue"""
-                endpoint = self.routers[0].endpoints[2]
+                endpoint = None
+                if not sizes or max(sizes) < 0:
+                    endpoint = self._http_codes_router[404]
+                else:
+                    endpoint = endpoints[sizes.index(max(sizes))]
                 t4 = loop.time()
                 resp_headers = await handle_endpoint(endpoint, meta | args, HttpHeaders(default_headers = {
-                    'Server-Timing': (
-                        f'recv;dur={(t1-t0)*1000},parse;dur={(t2-t1)*1000},log;dur={(t3-t2)*1000},route;dur={(t4-t3)*1000}', 
-                    )
+                    'Server-Timing': ((
+                        f'recv;desc="Receiving request";dur={(t1-t0)*1000},'
+                        f'parse;desc="Parsing request";dur={(t2-t1)*1000},'
+                        f'log;desc="Logging request";dur={(t3-t2)*1000},'
+                        f'route;desc="Routing";dur={(t4-t3)*1000}'
+                    ),)
                 }), client_pipe)
                 t5 = loop.time()
 
                 await body.skip()
                 t6 = loop.time()
 
-                if resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', ()):
+                if resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', ''):
                     await client_pipe.send(b'0\r\n')
-                    await client_pipe.send(f'Server-Timing: endpoint;dur={(t5-t4)*1000},skip;dur={(t6-t5)*1000}\r\n'.encode())
+                    await client_pipe.send(
+                        f'Server-Timing: endpoint;desc="Making response";dur={(t5-t4)*1000},skip;desc="Body skip";dur={(t6-t5)*1000}\r\n'.encode()
+                    )
                     await client_pipe.send(b'\r\n')
                 
                 if resp_headers.get('Connection', 'close' if resp_headers.version is HttpVersion.H1 else 'Keep-Alive') == 'close':
                     client_pipe.close()
                     return
 
-        async def handle_endpoint(endpoint: Endpoint, args: frozendict, add_headers: HttpHeaders, client_pipe: TcpPipe) -> HttpHeaders:
+        async def handle_endpoint(
+            endpoint: Endpoint,
+            args: frozendict,
+            add_headers: HttpHeaders,
+            client_pipe: TcpPipe
+        ) -> HttpHeaders:
             coro = optional(endpoint.function, **args)
             if not endpoint.is_generator:
-                return await answer_response(await coro, args['headers'], None, add_headers, client_pipe)
+                return await answer_response(await coro, args, None, add_headers, client_pipe)
             resp_headers: HttpHeaders | None = None
             async for response in coro:
-                resp_headers = await answer_response(response, args['headers'], resp_headers, add_headers, client_pipe)
+                resp_headers = await answer_response(response, args, resp_headers, add_headers, client_pipe)
+            return resp_headers
 
         async def answer_response(
             response: Any,
-            recv_headers: HttpHeaders,
+            args: frozendict,
             resp_headers: HttpHeaders,
             add_headers: HttpHeaders,
             client_pipe: TcpPipe
         ) -> HttpHeaders:
             if not response:
                 return
+            if isinstance(response, int):
+                return await handle_endpoint(self._http_codes_router[response], args, add_headers, client_pipe)
             if not isinstance(response, HttpChunkResponse):
                 response = HttpResponse(response)
             if isinstance(response, HttpHeaderResponse):
                 if resp_headers:
                     raise HttpHeaderAlreadySent()
                 resp_headers = add_headers
-                if recv_headers.version == HttpVersion.H11:
+                if args['headers'].version == HttpVersion.H11:
                     resp_headers.add_many({
                         'Trailer': ('Server-Timing', ),
                         'Transfer-Encoding': ('chunked', )
                     })
                 response.headers.extend(resp_headers)
-                await client_pipe.send(response.make_headers(recv_headers))
-            made = response.make(recv_headers)
-            if resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', ()):
+                await client_pipe.send(response.make_headers(args['headers']))
+            made = response.make(args['headers'])
+            if resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', ''):
                 await client_pipe.send(b''.join((hex(len(made))[2:].upper().encode(), b'\r\n', made, b'\r\n')))
             else:
                 await client_pipe.send(made)
@@ -206,3 +224,6 @@ class HttpServer(ServerProtocol):
     async def reload(self, *routers: TcpRouterProtocol) -> None:
         self.routers = routers
         await self._server.reload()
+
+    async def listen(self):
+        await self._server.listen()

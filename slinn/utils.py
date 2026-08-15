@@ -4,6 +4,7 @@ from collections.abc import AsyncIterable
 from slinn_cxx import representate
 import warnings
 import inspect
+import datetime
 import orjson
 import re
 import threading
@@ -37,6 +38,9 @@ def optional(func, *p, **k) -> Any:
                 break
             case 'POSITIONAL_ONLY' | 'VAR_POSITIONAL': ...
     return func(*args, **kwargs)
+
+def convert_datetime(dt: datetime.datetime) -> str:
+    return dt.strftime('%a, %d %b %Y %H:%M:%S GMT')
 
 class StoppableThread(threading.Thread):
     def __init__(self, *args: tuple, **kwargs: dict) -> None:
@@ -110,5 +114,5 @@ def min_restartswith_size(text: str, reg: str) -> int:
         return str(representated).encode()
     return orjson.dumps(representated)
 """
-def wrap_in_quotes(text: str) -> str:
-    return '"' + text + '"'
+def wrap_in_quotes(text: str, open_quote='"', close_quote='"') -> str:
+    return open_quote + text + close_quote

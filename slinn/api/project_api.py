@@ -38,7 +38,6 @@ class ProjectConfig(BaseModel):
     class Address(BaseModel):
         name: str
         port: str
-        host: str
         domains: list[str]
         protocol: str
         tls: bool = False
@@ -54,34 +53,36 @@ class ProjectConfig(BaseModel):
     class TLS(BaseModel):
         default_fullchain: bool | str = False
         default_privkey: bool | str = False
-    tls: Optional[TLS]
+    tls: TLS = TLS()
 
     class Protocol(BaseModel):
         class TCP(BaseModel):
             timeout: float = 0.5
             max_timeout: float = 60
             max_bytes_per_receive: int = 65535
-        tcp: Optional[TCP] = TCP()
+        tcp: TCP = TCP()
 
         class HTTP(BaseModel):
             max_header_size: int = 8192
-        http: Optional[HTTP] = HTTP()
+            max_requests: int = 1000
+            http_codes_router: str | None = None
+        http: HTTP = HTTP()
 
         class WebSocket(BaseModel):
             max_frame_size: int = 65535
             ping_interval: float = 30
-        websocket: Optional[WebSocket] = WebSocket()
+        websocket: WebSocket = WebSocket()
 
         class QUIC(BaseModel):
             idle_timeout: float = 60
-        quic: Optional[QUIC] = QUIC()
+        quic: QUIC = QUIC()
     protocols: Protocol = Protocol()
 
     class Logging(BaseModel):
         level: str = 'info'
         format: str = 'text'
         output: str = 'stdout'
-    logging: Optional[Logging]
+    logging: Logging | None
 
 
 class ProjectApi:
@@ -112,10 +113,10 @@ class ProjectApi:
             ]))
         yield _('Debug mode {status}').format(status=_('enabled') if self.config.project.debug else _('disabled'))
         yield RESET
-        yield _('Starting server...')
+        yield _('Starting servers...')
 
-        # logging.basicConfig(filename=f'{cfg.project.name}.journal.log', level=logging.DEBUG)
-        logging.basicConfig(level=logging.WARN)
+        #logging.basicConfig(filename=f'{self.config.project.name}.journal.log', level=logging.DEBUG)
+        logging.basicConfig(level=logging.WARNING)
         addresses = {}
         for address in self.config.addresses:
             addresses[address.name] = AddressConfigFactory.get_address(**address.model_dump())

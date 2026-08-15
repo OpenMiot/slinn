@@ -13,16 +13,17 @@ class HttpRender(HttpResponse):
     def __init__(
         self,
         file_path: str,
-        data: Optional[list[tuple]] = None,
+        data: list[tuple] | None = None,
         status: str = '200 OK',
-        ppdata: Optional[dict] = None,
+        ppdata: dict | None = None,
         storage = open,
         headers: HttpHeaders = None
     ):
+        super().__init__(self, data, status, headers=headers)
         self.file_path = file_path
-        self.data = data if data is not None else []
+        self.data = data or []
         self.status = status
-        self.ppdata = ppdata if ppdata is not None else {}
+        self.ppdata = ppdata or {}
         self.storage = storage
 
     def make(

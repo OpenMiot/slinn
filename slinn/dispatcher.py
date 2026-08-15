@@ -1,4 +1,4 @@
-from typing import Iterable, Any, Optional
+from typing import Iterable, Any
 from slinn.net import ServerProtocol, RouterProtocol
 from slinn.net.address import Address
 from slinn.net.tcp import TcpServer, TcpRouterProtocol
@@ -17,7 +17,7 @@ def get_loop_factory():
             import winloop
             return winloop.new_event_loop
         except ImportError:
-            return asyncio.new_event_loop
+            return asyncio.SelectorEventLoop
     else:
         try:
             import uvloop
@@ -83,22 +83,24 @@ class Dispatcher:
 
     def start(self):
         def run_servers():
+            async def main():
+                coros = []
+                for address in self.addresses:
+                    server = server_factory(address, self.protocols, self.routers, self.protocols_config, self.logger)
+                    coros.append(server.listen())
+                await asyncio.gather(*coros)
             event_loop = get_loop_factory()()
             asyncio.set_event_loop(event_loop)
-            tasks = set()
-            for address in self.addresses:
-                server = server_factory(address, self.protocols, self.routers, self.protocols_config, self.logger)
-                tasks.add(event_loop.create_task(server.listen()))
+            event_loop.run_until_complete(main())
             try:
-                event_loop.run_forever()
+                event_loop.run_until_complete(main())
             finally:
-                for task in tasks:
-                    task.cancel()
-                event_loop.run_until_complete(event_loop.shutdown_asyncgens())
-                event_loop.close()
-                raise
+                try:
+                    event_loop.run_until_complete(event_loop.shutdown_asyncgens())
+                finally:
+                    event_loop.close()
 
-        self._main_thread = threading.Thread(target=run_servers, daemon=True)
+        self._main_thread = threading.Thread(target=run_servers, daemon=False)
         self._main_thread.start()
 
     def join(self):
@@ -106,12 +108,11 @@ class Dispatcher:
 
     def print_servers(self):
         for address in self.addresses:
-            print('  - ',repr(address.__class__))
             print(
-                _('{protocol} server on {transport_protocol}:{port} is available at:').format(
+                _('{protocol} server on {transport_protocol}/{port} is available at:').format(
                     protocol = address.protocol.upper(),
-                    transport_protocol = address.transport_protocol,
+                    transport_protocol = address.transport_protocol.value,
                     port = address.port,
                 )
             )
-            print(*[f'  - {url}' for url in repr(address).split()], sep='\n')
+            print(*[f'  - {url}' for url in str(address).split()], sep='\n')

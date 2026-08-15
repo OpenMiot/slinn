@@ -13,10 +13,8 @@ class TcpPipe(PipeProtocol):
         def __init__(self, on_data_received):
             self.on_data_received = on_data_received
             self.transport = None
-            #self.buffer = bytearray()
 
         def data_received(self, data):
-            #self.buffer.extend(data)
             self.on_data_received(data)
 
     def __init__(
@@ -126,7 +124,7 @@ class TcpPipe(PipeProtocol):
         return client_pipe, Address(
             port = client_address[1],
             transport_protocol = TransportProtocol.TCP,
-            host = client_address[0]
+            domains = {client_address[0]}
         )
 
     def set_timeout(self, timeout: float) -> None:

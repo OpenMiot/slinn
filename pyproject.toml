@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "slinn"
-version = "3.0.0a10"
+version = "3.0.0a11"
 description = "An HTTP server framework"
 readme = "README.md"
 license = {text = "MIT"}
@@ -19,7 +19,27 @@ authors = [
     { name = "Miot Project", email = "openmiot@gmail.com"},
     { name = "Mark Radin", email = "mrybs2@gmail.com" }
 ]
-urls = { Homepage = "https://wiki.miot.su/slinn" }
+urls = { Homepage = "https://openimot.github.io/slinn" }
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: C++",
+
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+
+    "Topic :: Internet",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Framework :: AsyncIO",
+]
 
 [project.optional-dependencies]
 dev = [

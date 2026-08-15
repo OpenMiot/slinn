@@ -51,7 +51,7 @@ PYBIND11_MODULE(slinn_cxx, m) {
         .def("add", &HttpHeaders::add, py::return_value_policy::move)
         .def("add_many", &HttpHeaders::add_many, py::return_value_policy::move)
         .def("set", &HttpHeaders::set, py::return_value_policy::move)
-        .def("del", &HttpHeaders::del, py::return_value_policy::move)
+        .def("delete", &HttpHeaders::del, py::return_value_policy::move)
         .def("pop", &HttpHeaders::pop,
              py::arg("key"),
              py::arg("index") = -1)
