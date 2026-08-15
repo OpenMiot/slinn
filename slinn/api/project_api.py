@@ -6,7 +6,9 @@ from slinn.tools.manage.misc import (
 from slinn.tools.manage.colorcodes import *
 from slinn.net.address import AddressConfigFactory
 from slinn.tools.manage.defaults import APP_CONFIG
-from slinn.api.exceptions import AppExistsException, AppNotExistException, AppNameIsNotSpecified, AppNameIsNotValid
+from slinn.api.exceptions import (
+    AppExistsException, AppNotExistException, TemplateNotExistsException, AppNameIsNotValidException
+)
 from slinn.net import RouterProtocol
 from slinn.api import AppApi, StorageApi
 from typing import Optional, Iterator
@@ -113,7 +115,7 @@ class ProjectApi:
         yield _('Starting server...')
 
         # logging.basicConfig(filename=f'{cfg.project.name}.journal.log', level=logging.DEBUG)
-        logging.basicConfig(level=logging.DEBUG)
+        logging.basicConfig(level=logging.WARN)
         addresses = {}
         for address in self.config.addresses:
             addresses[address.name] = AddressConfigFactory.get_address(**address.model_dump())
@@ -191,10 +193,8 @@ class ProjectApi:
         # routers = get_routers([app['name'] for app in cfg['apps']], plugins_zip, plugins_dir, cfg.get('debug', False))
 
     def create_app(self, name: str, *, init: bool = True) -> None:
-        if not name:
-            raise AppNameIsNotSpecified()
         if not validate_name(name):
-            raise AppNameIsNotValid(name)
+            raise AppNameIsNotValidException(name)
         if os.path.isdir(name):
             raise AppExistsException(name)
 
@@ -213,98 +213,101 @@ class ProjectApi:
         self.config.apps.append(ProjectConfig.App(name=name))
         self.save_config()
 
-    @staticmethod
-    def create_app_from_template(name: str, template_name: str, path: str = '.',
-                                 templates_folder=slinn.root + '/templates') -> None:
-        apppath = (path + '?').replace('/?', '').replace('?', '')
-        config = ProjectAPI.get_config()
-        if name in config['apps']:
-            raise AppExistsException(name)
-        config['apps'].insert(0, name)
-        with open('project.json', 'w') as project:
-            json.dump(config, project, indent=4)
-        try:
-            shutil.copytree(f'{templates_folder}/{template_name}/', f'{apppath}/{name}',
-                            ignore=shutil.ignore_patterns('data'))
-            with open(f'{name}/__init__.py', 'w') as fw:
-                with slinn_root('/defaults/app/__init__.py.template', 'r') as fr:
-                    fw.write(pp.preprocess(fr.read(), {
-                        'appname': name
-                    }))
-            os.makedirs(f'{apppath}/templates_data', exist_ok=True)
-            try:
-                shutil.copytree(f'{templates_folder}/{template_name}/data/',
-                                f'{apppath}/templates_data/{template_name}')
-            except (FileExistsError, FileNotFoundError):
-                pass
-        except (FileExistsError, FileNotFoundError):
-            pass
-
-    @staticmethod
-    def delete_app(name: str, path: str = '.') -> None:
-        apppath = (path + '?').replace('/?', '').replace('?', '')
-        ensure_appname = replace_all(name, '-&$#!@%^().,', '_')
-        if not os.path.isdir(ensure_appname):
+    def delete_app(self, name: str) -> None:
+        if not validate_name(name):
+            raise AppNameIsNotValidException(name)
+        if not os.path.isdir(name):
             raise AppNotExistException(name)
-        shutil.rmtree(ensure_appname)
-        shutil.rmtree(f'{apppath}/templates_data/{ensure_appname}', ignore_errors=True)
-        if os.path.isdir(f'{apppath}/templates_data'):
-            if len(os.listdir(f'{apppath}/templates_data')) == 0:
-                shutil.rmtree(f'{apppath}/templates_data')
-        ProjectAPI.update_config()
 
-    @staticmethod
-    def set_project_name(name: str):
-        ProjectAPI.update_config({'name': name})
+        shutil.rmtree(name)
 
-    @staticmethod
-    def set_host(host: str):
-        ProjectAPI.update_config({'host': host})
+        for i, app in enumerate(self.config.apps):
+            if app.name == name:
+                del self.config.apps[i]
+        self.save_config()
 
-    @staticmethod
-    def set_port(port: int):
-        ProjectAPI.update_config({'port': port})
+    def install_template(self, template_name: str, app_name: str):
+        if not validate_name(app_name):
+            raise AppNameIsNotValidException(app_name)
+        if template_name not in self.get_templates():
+            raise TemplateNotExistsException(template_name)
 
-    @staticmethod
-    def disable_ssl():
-        ProjectAPI.update_config({'ssl': {
-            'fullchain': False,
-            'key': False
-        }})
-
-    @staticmethod
-    def set_ssl_certs(public_cert_path: str, private_cert_path: str):
-        ProjectAPI.update_config({'ssl': {
-            'fullchain': public_cert_path,
-            'key': private_cert_path
-        }})
-
-    @staticmethod
-    def set_debug(mode: bool):
-        ProjectAPI.update_config({'debug': mode})
-
-    @staticmethod
-    def is_ssl() -> bool:
-        config = ProjectAPI.get_config()
-        return 'ssl' in config and \
-            'fullchain' in config['ssl'] and \
-            config['ssl']['fullchain'] and \
-            'key' in config['ssl'] and \
-            config['ssl']['key']
-
-    @staticmethod
-    def get_link() -> str:
-        config = ProjectAPI.get_config()
-        is_ssl = ProjectAPI.is_ssl()
-        protocol = 'https' if is_ssl else 'http'
-        return (
-                f'{protocol}://' +
-                (
-                    '0.0.0.0' if (config['host'] is None or config['host'] == '') else (
-                        '[' + config['host'] + ']' if ':' in config['host'] else config['host'])
-                ) +
-                f'{(":" + str(config['port']) if config['port'] != 443 else "") if is_ssl else (":" + str(config['port']) if config['port'] != 80 else "")}/'
+        template = load_template(
+            f'spm_packages/Templates/{template_name}/template.py',
+            f'spm_packages.Templates.{template_name}'
         )
+        self.create_app(app_name, init=False)
+        template.install(
+            os.path.abspath(app_name),
+            os.path.abspath(f'spm_packages/Templates/{template_name}')
+        )
+
+    async def apply_all_migrations(self) -> int:
+        plugins = self.get_plugins()
+
+        plugins_zip = {
+            key: plugin
+            for key, plugin in plugins.items()
+            if plugin['enabled'] and plugin['zip']
+        }
+
+        plugins_dir = {
+            key: plugin
+            for key, plugin in plugins.items()
+            if plugin['enabled'] and not plugin['zip']
+        }
+
+        migrations = {}
+
+        async def check_and_apply_migration(migration_meta):
+            migration = migration_meta.cls()
+            for dependency in migration.dependencies:
+                if not migrations[dependency].applied:
+                    await check_and_apply_migration(migrations[dependency])
+            print(f'{GRAY}  - Checking {migration_meta.cls.__name__} from {migration_meta.display}... ', end='')
+            if await migration.check():
+                print(f'{GREEN}+{RESET}')
+                print(f'{GRAY}  - Applying {migration_meta.cls.__name__} from {migration_meta.display}...{RESET}')
+                await migration.apply()
+            else:
+                print(f'{RED}-{RESET}')
+            if migration_meta.is_zip:
+                exec(';'.join(load_imports((), (migration_meta.package_key,), (), cfg['debug'])))
+            else:
+                exec(';'.join(load_imports((), (), (migration_meta.package_key,), cfg['debug'])))
+            migration_meta.set_applied()
+
+        for key in plugins_zip | plugins_dir:
+            is_zip = (plugins_zip | plugins_dir)[key]['zip']
+            _migrations = {
+                migration.cls.__name__ + f'.{key}': migration
+                for migration in load_migrations(
+                    os.path.join(self.path, f'spm_packages/Plugins/{key}' + ('.zip' if is_zip else '')),
+                    key,
+                    is_zip
+                )
+            }
+            migrations.update(_migrations)
+            for migration_meta in _migrations.values():
+                if migration_meta.applied:
+                    continue
+                await check_and_apply_migration(migration_meta)
+
+        migrations.update({
+            migration.cls.__name__: migration
+            for migration in load_migrations(
+                os.path.dirname(__file__),
+                self.config.project.name,
+                False
+            )
+        })
+
+        for migration_meta in migrations.values():
+            if migration_meta.applied:
+                continue
+            await check_and_apply_migration(migration_meta)
+
+        return len(migrations)
 
     @staticmethod
     def restart():
@@ -313,8 +316,13 @@ class ProjectApi:
         os._exit(0)
 
     @staticmethod
-    def get_plugins() -> list[dict]:
-        return packages()['plugins']
+    def get_plugins() -> dict:
+        pkgs = packages()
+        return plugins_sorted(pkgs['plugins'], pkgs)
+
+    @staticmethod
+    def get_templates() -> list[dict]:
+        return packages()['templates']
 
     @staticmethod
     def get_plugin_storage(key) -> StorageApi:

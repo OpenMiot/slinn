@@ -13,10 +13,10 @@ class TcpPipe(PipeProtocol):
         def __init__(self, on_data_received):
             self.on_data_received = on_data_received
             self.transport = None
-            self.buffer = bytearray()
+            #self.buffer = bytearray()
 
         def data_received(self, data):
-            self.buffer.extend(data)
+            #self.buffer.extend(data)
             self.on_data_received(data)
 
     def __init__(
@@ -26,10 +26,11 @@ class TcpPipe(PipeProtocol):
         family: socket.AddressFamily | int = -1,
         type: socket.SocketKind | int = -1,
         proto: int = -1,
-        fileno: Optional[int] = None,
+        fileno: int | None = None,
         timeout: float = 5,
-        ssl_context: Optional[ssl.SSLContext] = None,
-        bytes_per_receive: int = 65536
+        ssl_context: ssl.SSLContext | None = None,
+        bytes_per_receive: int = 65536,
+        max_bytes_per_receive: int = 65536
     ):
         self._sock = socket.socket(family, type, proto, fileno)
         self.buffer = bytearray()
@@ -37,6 +38,7 @@ class TcpPipe(PipeProtocol):
         self.loop = loop
         self.ssl_context = ssl_context
         self._bytes_per_receive = bytes_per_receive
+        self._max_bytes_per_receive = max_bytes_per_receive
 
         self._transport, self._protocol = None, None
         self._read_event = asyncio.Event()
@@ -67,9 +69,10 @@ class TcpPipe(PipeProtocol):
             )
         self._handshake_complete = True
 
-    async def recv(self, n_bytes: Optional[int] = None):
+    async def recv(self, n_bytes: int | None = None):
         if n_bytes is None:
             n_bytes = self._bytes_per_receive
+        n_bytes = min(n_bytes, self._max_bytes_per_receive)
 
         await self.do_handshake()
 
@@ -80,10 +83,14 @@ class TcpPipe(PipeProtocol):
             self.close()
             raise SocketClosed('socket closed')
 
-        self._read_event.clear()
-
         data = self.buffer[:n_bytes] if len(self.buffer) > n_bytes else self.buffer
         self.buffer = self.buffer[n_bytes:] if len(self.buffer) > n_bytes else bytearray()
+
+        if not self.buffer:
+            self._read_event.clear()
+        else:
+            self._read_event.set()
+        
         return data
 
     async def send(self, data: bytes) -> None:

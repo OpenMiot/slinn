@@ -1,6 +1,6 @@
 from __future__ import annotations
 from slinn.net.ws import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake
-from slinn.net.http.responses import HttpResponseChunk
+from slinn.net.http.responses import HttpChunkResponse
 from slinn.exceptions import NotAWebSocketConnection
 
 
@@ -18,7 +18,7 @@ class WebSocketConnection:
 
     async def _send(self, opcode: WebSocketOpcodes, payload: bytes):
         frame = WebSocketFrame(True, opcode, False, payload)
-        await self.client_pipe.send(HttpResponseChunk(WebSocketFrame.pack(frame)).make())
+        await self.client_pipe.send(HttpChunkResponse(WebSocketFrame.pack(frame)).make())
 
     async def send_binary(self, payload: bytes):
         await self._send(WebSocketOpcodes.BINARY, payload)

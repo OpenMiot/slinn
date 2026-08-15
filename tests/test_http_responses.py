@@ -22,7 +22,7 @@ def sample_request() -> HttpRequest:
 
 
 def test_http_response_chunk(sample_request):
-    assert HttpResponseChunk('test').make(sample_request) == b'test'
+    assert HttpChunkResponse('test').make(sample_request) == b'test'
 
 
 def describe_http_response_header():
@@ -33,7 +33,7 @@ def describe_http_response_header():
         http += b'Content-Encoding: gzip\r\n'
         http += b'Connection: Keep-Alive\r\n'
         http += b'\r\n'
-        assert HttpResponseHeader().make(sample_request) == http
+        assert HttpHeaderResponse().make(sample_request) == http
 
     def custom_data(sample_request):
         http = b'HTTP/1.1 200 OK\r\n'
@@ -43,7 +43,7 @@ def describe_http_response_header():
         http += b'Content-Encoding: gzip\r\n'
         http += b'Connection: Keep-Alive\r\n'
         http += b'\r\n'
-        assert HttpResponseHeader([
+        assert HttpHeaderResponse([
             ('Access-Control-Allow-Origin', '*' )
         ], content_type='text/html; charset=utf-8').make(sample_request) == http
 
@@ -56,4 +56,4 @@ def describe_http_response_header():
         http += b'Content-Encoding: gzip\r\n'
         http += b'Connection: close\r\n'
         http += b'\r\n'
-        assert HttpResponseHeader(status='403 Forbidden').make(sample_request) == http
+        assert HttpHeaderResponse(status='403 Forbidden').make(sample_request) == http

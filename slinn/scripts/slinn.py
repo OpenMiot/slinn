@@ -1,4 +1,6 @@
-from slinn.api.exceptions import AppExistsException, AppNameIsNotValid, AppNameIsNotSpecified, SlinnApiException
+from slinn.api.exceptions import (
+    AppExistsException, AppNameIsNotValidException, TemplateNotExistsException, SlinnApiException
+)
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.help_generator import help_generator
@@ -39,7 +41,36 @@ async def create_command(name: str):
         project.create_app(name)
     except SlinnApiException as e:
         return str(e).capitalize(), RED
-    return 'App successfully created', GREEN
+    return _('App successfully created'), GREEN
+
+@root_command.subcommand('delete-app', ('name',))
+async def delete_command(name):
+    if input(_('Are you sure? (y/N) >>> ')).lower() not in ('y', 'yes', _('y'), _('yes')):
+        return _('Aborted')
+    try:
+        project.delete_app(name)
+    except SlinnApiException as e:
+        return str(e).capitalize(), RED
+    return _('App successfully deleted'), GREEN
+
+@root_command.subcommand('template', ('template_name', 'app_name'))
+async def template_command(template_name, app_name):
+    try:
+        project.install_template(template_name, app_name)
+    except SlinnApiException as e:
+        return str(e).capitalize(), RED
+    return _('Template \'{template_name}\' successfully installed as \'{app_name}\'').format(
+        template_name = template_name, app_name = app_name), GREEN
+
+@root_command.subcommand('migrate-all')
+async def apply_all_migrations():
+    try:
+        return _('Found {migrations_count} migrations total').format(
+            migrations_count = await project.apply_all_migrations()
+        ), GREEN
+    except SlinnApiException as e:
+        return str(e).capitalize(), RED
+
 
 @root_command.subcommand('help')
 async def help_command():
@@ -48,22 +79,18 @@ async def help_command():
         'create-app {app`s name} host=(host1) host=(host2)...': 'create a new app',
         'delete-app {app`s name} (project`s path)': 'delete an app',
         'template {template`s name} (projects`s path)': 'install a template app',
-        'template-classic {template`s name} (projects`s path)': 'install a classic template app',
         'migrate-all': 'apply migrations',
         'help': 'display this message',
         'version': 'display slinn`s version'
     })
 
-
 @root_command.subcommand('version')
 async def version_command():
     return slinn.version
 
-
 @root_command.command_not_exists()
 async def command_not_exists():
     yield f'Command {sys.argv[1].lower()} is not exists', RED
-
 
 @root_command.command_not_specified()
 async def command_not_specified():

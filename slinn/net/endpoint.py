@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Callable, Optional
 from slinn.net import FilterProtocol
+import inspect
 
 
 class Endpoint:
@@ -13,3 +14,4 @@ class Endpoint:
         self.filter = _filter
         self.function = function
         self.args = args
+        self.is_generator = inspect.isasyncgenfunction(function)

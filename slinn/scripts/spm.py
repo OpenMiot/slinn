@@ -1,4 +1,5 @@
-from slinn import slinn_root, Storage
+from slinn import root
+from slinn.api import StorageApi
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.help_generator import help_generator
@@ -14,20 +15,23 @@ import email
 import zipfile
 import shutil
 import platform
+import asyncio
 
 
 __PD, __PI = datetime(2026, 7, 2), 1
 
-VERSION = {
-    'name': 'Slinn Package Manager',
-    'version': (
+VERSION = frozendict(
+    name = 'Slinn Package Manager',
+    version = (
         __PD.strftime('%y.%#m-') if platform.system() == "Windows" else __PD.strftime('%y.%-m-')
         ) + ascii_uppercase[__PI - 1],
-    'meta': {}
-}
+    meta = frozendict()
+)
 
 version = VERSION['name'] + ' ' + VERSION['version']
 
+
+slinn_root = StorageApi(root)
 root_command = Command()
 
 spm_config = {
@@ -56,8 +60,8 @@ with slinn_root('spm/spm.json', 'w') as f:
 
 @root_command.command_not_specified()
 @root_command.subcommand('help')
-def no_args_handler():
-    print(help_generator(version, sys.argv[0], {
+async def no_args_handler():
+    return help_generator(version, sys.argv[0], {
         'update': 'update packages metadata from repositories',
         'install': 'install or upgrade package',
         'uninstall': 'uninstall package',
@@ -68,11 +72,11 @@ def no_args_handler():
         'list-packages': 'display all packages in repositories',
         'help': 'display this message',
         'version': 'display version'
-    }))
+    })
 
 
 @root_command.subcommand('update')
-def update():
+async def update():
     for i, (key, repo) in enumerate(spm_config['repositories'].items()):
         if repo['type'] == 'http':
             updated = False
@@ -103,16 +107,16 @@ def update():
 
 
 @root_command.subcommand('install')
-def install(args):
-    if not os.path.isfile(os.getcwd()+'/project.json'):
+async def install(not_used):
+    if not os.path.isfile(os.getcwd()+'/slinn.toml'):
         print(f'{RED}Not in Slinn project directory.{RESET}')
         return
-    project = Storage(os.getcwd())
-    if len(args.get('not_used', ())) == 0:
+    project = StorageApi(os.getcwd())
+    if len(not_used) == 0:
         print(f'{GRAY}Nothing to do{RESET}')
         return
     to_install = []
-    for keys in args['not_used']:
+    for keys in not_used:
         keys = keys.split('@')
         if len(keys) > 2:
             print(f'{RED}Package name is invalid.{RESET}')
@@ -289,11 +293,11 @@ def install(args):
 
 
 @root_command.subcommand('uninstall')
-def uninstall(args):
+async def uninstall(args):
     if not os.path.isfile(os.getcwd()+'/project.json'):
         print(f'{RED}Not in Slinn project directory.{RESET}')
         return
-    project = Storage(os.getcwd())
+    project = StorageApi(os.getcwd())
     if len(args.get('not_used', ())) == 0:
         print(f'{GRAY}Nothing to do{RESET}')
         return
@@ -342,14 +346,14 @@ def uninstall(args):
 
 
 @root_command.subcommand('info', ('key', ))
-def info_command(args):
+async def info_command(args):
     if not os.path.isfile(os.getcwd()+'/project.json'):
         print(f'{RED}Not in Slinn project directory.{RESET}')
         return
     if 'key' not in args:
         print(f'{RED}Package is not specified.{RESET}')
         return
-    project = Storage(os.getcwd())
+    project = StorageApi(os.getcwd())
     packages = {
         'plugins': {},
         'templates': {},
@@ -380,11 +384,11 @@ def info_command(args):
         )
 
 @root_command.subcommand('list')
-def list_command():
+async def list_command():
     if not os.path.isfile(os.getcwd() + '/project.json'):
         print(f'{RED}Not in Slinn project directory.{RESET}')
         return
-    project = Storage(os.getcwd())
+    project = StorageApi(os.getcwd())
     packages = {
         'plugins': {},
         'templates': {},
@@ -405,7 +409,7 @@ def list_command():
 
 
 @root_command.subcommand('list-repos')
-def list_repos():
+async def list_repos():
     for i, (key, repo) in enumerate(spm_config['repositories'].items()):
         if repo['type'] == 'http':
             print(f'{str(i+1)+". ":<4}HTTP {BOLD}{repo["name"]}{RESET} repository ({key}) at {repo["baseUrl"]}')
@@ -415,7 +419,7 @@ def list_repos():
 
 
 @root_command.subcommand('list-packages')
-def list_packages():
+async def list_packages():
     count = 0
     for repo_key, repo in spm_config['repositories'].items():
         if not slinn_root.isfile(f'spm/repositories/{repo_key}.json'):
@@ -431,18 +435,18 @@ def list_packages():
 
 
 @root_command.subcommand('version')
-def display_version():
+async def display_version():
     print(version)
 
 
 @root_command.command_not_exists()
-def command_not_exists():
+async def command_not_exists():
     print(f'{RED}Command {BOLD}{sys.argv[1]}{RESET}{RED} not found{RESET}')
 
 
 
 def main():
-    root_command(sys.argv[1:])()
+    asyncio.run(root_command(sys.argv[1:]))
 
 if __name__ == '__main__':
     main()

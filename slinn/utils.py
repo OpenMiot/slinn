@@ -1,6 +1,7 @@
 from abc import ABCMeta
 from typing import Any, Coroutine
 from collections.abc import AsyncIterable
+from slinn_cxx import representate
 import warnings
 import inspect
 import orjson
@@ -8,6 +9,7 @@ import re
 import threading
 import importlib
 import importlib.util
+import enum
 
 
 rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
@@ -77,7 +79,7 @@ def min_restartswith_size(text: str, reg: str) -> int:
     return len(smallest) if smallest is not None else 2147483647
 
 
-def representate(obj: Any) -> bytes:
+"""def representate(obj: Any) -> bytes:
     def __representate_str(obj: Any) -> str | dict | list | int | float | bool:
         if isinstance(obj, dict):
             return {key: __representate_str(obj[key]) for key in obj.keys()}
@@ -87,6 +89,8 @@ def representate(obj: Any) -> bytes:
             return obj
         if isinstance(obj, bytes):
             return obj.decode()
+        if isinstance(obj, enum.Enum):
+            return __representate_str(obj.value)
         if type(obj).__str__ != object.__str__ or type(obj).__repr__ != object.__repr__:
             try:
                 return repr(obj)
@@ -105,3 +109,6 @@ def representate(obj: Any) -> bytes:
     if type(representated) in (str, int, float, bool):
         return str(representated).encode()
     return orjson.dumps(representated)
+"""
+def wrap_in_quotes(text: str) -> str:
+    return '"' + text + '"'

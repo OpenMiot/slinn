@@ -1,11 +1,11 @@
 from typing import Any
-from slinn.net.http import HttpRequest
+from slinn.net.http import HttpHeaders
 from slinn import utils
 
 
-class HttpResponseChunk:
+class HttpChunkResponse:
     def __init__(self, payload: Any) -> None:
         self.payload = utils.representate(payload)
 
-    def make(self, request: HttpRequest) -> bytes:
+    def make(self, headers: HttpHeaders) -> bytes:
         return self.payload

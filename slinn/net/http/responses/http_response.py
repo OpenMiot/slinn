@@ -1,11 +1,11 @@
-from . import HttpResponseHeader, HttpResponseChunk
-from slinn.net.http import HttpRequest
+from . import HttpHeaderResponse, HttpChunkResponse
+from slinn.net.http import HttpHeaders
 from slinn.utils import representate
 from typing import Any, Optional
 import gzip
 
 
-class HttpResponse(HttpResponseHeader, HttpResponseChunk):
+class HttpResponse(HttpHeaderResponse, HttpChunkResponse):
     """
     Base class for all HTTP responses
     """
@@ -13,21 +13,25 @@ class HttpResponse(HttpResponseHeader, HttpResponseChunk):
     def __init__(
         self,
         payload: Any,
-        data: Optional[list[tuple]] = None,
+        data: Optional[HttpHeaders] = None,
         status: str = '200 OK',
         content_type: str = 'text/plain; charset=utf-8',
         use_gzip: bool = True,
-        request: Optional[HttpRequest] = None
+        headers: HttpHeaders | None = None
     ):
         payload = representate(payload)
-        use_gzip = use_gzip and request and 'gzip' in request.accept_encoding
+        #use_gzip = use_gzip and request and 'gzip' in request.accept_encoding
+        use_gzip = False
         if use_gzip:
             payload = gzip.compress(payload)
 
-        HttpResponseHeader.__init__(self, (data if data else []) + [
-            ('Content-Length', len(payload))
-        ], status, content_type, use_gzip)
-        HttpResponseChunk.__init__(self, payload)
+        HttpHeaderResponse.__init__(
+            self,
+            (data or HttpHeaders()).add('Content-Length', len(payload)),
+            status,
+            content_type
+        )
+        HttpChunkResponse.__init__(self, payload)
 
-    def make(self, request: HttpRequest) -> bytes:
-        return HttpResponseHeader.make(self, request) + HttpResponseChunk.make(self, request)
+    def make(self, headers: HttpHeaders) -> bytes:
+        return HttpChunkResponse.make(self, headers)

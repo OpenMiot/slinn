@@ -1,12 +1,13 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["pybind11>=3.1.0", "scikit-build-core>=1.0.3"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "slinn"
-version = "3.0.0a9"
+version = "3.0.0a10"
 description = "An HTTP server framework"
 readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.15"
 dependencies = [
     "tomlkit==0.15.1",
@@ -42,13 +43,15 @@ slinn-admin = "slinn.scripts.slinn_admin:main"
 slinn       = "slinn.scripts.slinn:main"
 spm         = "slinn.scripts.spm:main"
 
-[tool.setuptools]
-zip-safe = false
-include-package-data = true
+[tool.scikit-build]
+cmake.version = ">=3.15"
+cmake.build-type = "Release"
+wheel.expand-macos-universal-tags = true
+build-dir = "build"
 
-[tool.setuptools.packages.find]
-where = ["."]
-exclude = ["t*", "venv*", "Writerside*", "build*", "test*", ".venv*"]
+[tool.scikit-build.editable]
+mode = "redirect"           # вместо "inplace" – сборка в build/ и симлинки
+rebuild = false             # не пересобирать при повторной установке, если ничего не изменилось
 
 [tool.pytest.ini_options]
 addopts = "-v --cov=slinn --cov-report=html --cov-fail-under=80"

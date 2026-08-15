@@ -1,7 +1,7 @@
-from . import HttpResponseHeader
+from . import HttpHeaderResponse
 
 
-class HttpGETRedirect(HttpResponseHeader):
+class HttpGETRedirect(HttpHeaderResponse):
     """
     Class for redirect to specified location
     """
@@ -10,4 +10,4 @@ class HttpGETRedirect(HttpResponseHeader):
         self,
         location: str
     ):
-        HttpResponseHeader.__init__(self, data=[('Location', location)], status='303 See Other')
+        HttpHeaderResponse.__init__(self, data=[('Location', location)], status='303 See Other')

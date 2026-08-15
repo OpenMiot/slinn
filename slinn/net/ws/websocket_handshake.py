@@ -1,9 +1,9 @@
-from slinn.net.http.responses import HttpResponseHeader
+from slinn.net.http.responses import HttpHeaderResponse
 import hashlib
 import base64
 
 
-class WebSocketHandshake(HttpResponseHeader):
+class WebSocketHandshake(HttpHeaderResponse):
     _STATIC_GUID = b'258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
     def __init__(self, sec_websocket_key: str):

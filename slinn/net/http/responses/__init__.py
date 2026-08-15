@@ -1,5 +1,5 @@
-from .http_response_chunk import HttpResponseChunk
-from .http_response_header import HttpResponseHeader
+from .http_chunk_response import HttpChunkResponse
+from .http_header_response import HttpHeaderResponse
 from .http_response import HttpResponse
 from .http_redirect import HttpRedirect
 from .http_get_redirect import HttpGETRedirect
