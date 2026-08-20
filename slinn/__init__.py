@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from babel.dates import format_timedelta
 from locale import getdefaultlocale
 from contextvars import ContextVar
-from slinn import utils
 from slinn import exceptions
 import os
 import sys
@@ -26,7 +25,7 @@ def _(text: str) -> str:
         except Exception:
             return text
 
-__PD = datetime(2026, 8, 20)
+__PD = datetime(2026, 8, 21)
 
 VERSION = frozendict(
     name = 'Slinn',
@@ -36,7 +35,7 @@ VERSION = frozendict(
         minor = 0,
         patch = 0,
         type = 'alpha',
-        revision = 12
+        revision = 13
     ),
     dies_at = __PD + timedelta(days=180),
     is_eap = True,
@@ -70,7 +69,7 @@ if VERSION['may_incompatible']:
         skip_file_prefixes = (os.path.dirname(__name__), )
     )
 
-lazy from slinn.i_middleware import IMiddleware
+lazy from slinn.middleware_protocol import MiddlewareProtocol
 lazy from slinn.preprocessor import Preprocessor
 lazy from slinn.dispatcher import Dispatcher
 lazy from slinn.migration import Migration

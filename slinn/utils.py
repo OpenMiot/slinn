@@ -1,7 +1,6 @@
 from abc import ABCMeta
 from typing import Any, Coroutine
 from collections.abc import AsyncIterable
-from slinn_cxx import representate
 import warnings
 import inspect
 import datetime
@@ -82,7 +81,7 @@ def min_restartswith_size(text: str, reg: str) -> int:
     return len(smallest) if smallest is not None else 2147483647
 
 
-"""def representate(obj: Any) -> bytes:
+def representate(obj: Any) -> bytes:
     def __representate_str(obj: Any) -> str | dict | list | int | float | bool:
         if isinstance(obj, dict):
             return {key: __representate_str(obj[key]) for key in obj.keys()}
@@ -112,6 +111,6 @@ def min_restartswith_size(text: str, reg: str) -> int:
     if type(representated) in (str, int, float, bool):
         return str(representated).encode()
     return orjson.dumps(representated)
-"""
+
 def wrap_in_quotes(text: str, open_quote='"', close_quote='"') -> str:
     return open_quote + text + close_quote

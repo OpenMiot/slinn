@@ -19,11 +19,12 @@ class HttpHeadersMixin:
         content_type: str = 'text/plain; charset=utf-8',
     ):
         self.headers = headers or HttpHeaders()
-        self.headers.add_many({
+        self.headers.set_many({
             'Content-Type': (content_type, ),
             'Server': (slinn.version, ),
             ':status': (status, )
         })
+        
 
     def set_cookie(
         self,
@@ -64,11 +65,11 @@ class HttpHeadersMixin:
         )
         return self
 
-    async def make(self, *, request: HttpRequest, **kwargs) -> bytes:
-        self.headers.version = request.headers.version
+    async def make(self, *, recv_headers: HttpRequest, **kwargs) -> bytes:
+        self.headers.version = recv_headers.version
         self.headers.set(
             'Connection',
-            request.headers.get('Connection', 'close' if request.headers.version == HttpVersion.H1 else 'Keep-Alive')
+            recv_headers.get('Connection', 'close' if recv_headers.version == HttpVersion.H1 else 'Keep-Alive')
         )
         self.headers.set(
             'Date',

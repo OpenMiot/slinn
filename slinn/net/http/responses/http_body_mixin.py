@@ -2,7 +2,7 @@ from typing import Any
 from slinn.net.http import HttpHeaders
 from slinn import utils
 
- 
+
 class HttpBodyMixin:
     def __init__(self, payload: Any) -> None:
         self.payload = utils.representate(payload)

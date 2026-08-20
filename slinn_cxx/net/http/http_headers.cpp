@@ -136,7 +136,7 @@ std::string HttpHeaders::normalizeKey(std::string& key) const{
 }
 
 std::string HttpHeaders::normalizeValue(const py::object& value) const{
-    return representate(value).attr("decode")().cast<std::string>();
+    return representate(value);
 }
 
 HttpHeaders HttpHeaders::parse(const std::string& rawHttp){
@@ -153,7 +153,7 @@ HttpHeaders HttpHeaders::parse(const std::string& rawHttp){
     std::string _method = std::string(_startLine.substr(0, methodPos));
     toUpperCase(_method);
     headers._add(":method", _method);
-    headers._add(":path", std::string(_startLine.substr(methodPos+1, pathPos-4)));
+    headers._add(":path", std::string(strip(_startLine.substr(methodPos+1, pathPos-4))));
 
     size_t current_pos = pos + 2;
     while (current_pos < http.size()) {
@@ -213,32 +213,45 @@ std::string HttpHeaders::get(std::string key, const py::object& default_value) c
     return _values[0];
 }
 std::vector<std::string> HttpHeaders::values(std::string key, const std::vector<py::object>& default_values) const{
-    std::vector<std::string> normalized_default_vaules;
+    std::vector<std::string> normalized_default_values;
     for(auto value : default_values){
-        normalized_default_vaules.push_back(normalizeValue(value));
+        normalized_default_values.push_back(normalizeValue(value));
     }
-    return get_optional(_data, normalizeKey(key)).value_or(normalized_default_vaules);
+    return get_optional(_data, normalizeKey(key)).value_or(normalized_default_values);
 }
 
 HttpHeaders HttpHeaders::add(std::string key, const py::object& value){
     _add(key, normalizeValue(value));
     return *this;
 }
+
 HttpHeaders HttpHeaders::add_many(std::unordered_map<std::string, std::vector<py::object>> headers){
     for(const auto& [_key, values] : headers){
         std::string key = _key;
         key = normalizeKey(key);
-        std::vector<std::string> normalized_default_vaules;
+        std::vector<std::string> normalized_default_values;
         for(auto value : values){
-            normalized_default_vaules.push_back(normalizeValue(value));
+            normalized_default_values.push_back(normalizeValue(value));
         }
         if(__contains__(key)){
             std::vector<std::string>& _values = _data[key];
-            _values.reserve(_values.size() + normalized_default_vaules.size());
-            _values.insert(_values.end(), normalized_default_vaules.begin(), normalized_default_vaules.end());
+            _values.reserve(_values.size() + normalized_default_values.size());
+            _values.insert(_values.end(), normalized_default_values.begin(), normalized_default_values.end());
         }else{
-            _data[key] = normalized_default_vaules;
+            _data[key] = normalized_default_values;
         }
+    }
+    return *this;
+}
+HttpHeaders HttpHeaders::set_many(std::unordered_map<std::string, std::vector<py::object>> headers){
+    for(const auto& [_key, values] : headers){
+        std::string key = _key;
+        key = normalizeKey(key);
+        std::vector<std::string> normalized_default_values;
+        for(auto value : values){
+            normalized_default_values.push_back(normalizeValue(value));
+        }
+        _data[key] = normalized_default_values;
     }
     return *this;
 }
@@ -273,7 +286,7 @@ std::vector<std::string> HttpHeaders::keys() const{
     return _keys;
 }
 bool HttpHeaders::__contains__(std::string key) const{
-    return _data.contains(key);
+    return _data.contains(normalizeKey(key));
 }
 py::bytes HttpHeaders::make() const{
     if(!status()) throw std::runtime_error("pseudo header :status is not provided");
@@ -302,8 +315,10 @@ HttpHeaders HttpHeaders::extend(const HttpHeaders& headers){
     return *this;
 }
 
-HttpHeaders HttpHeaders::merge(HttpHeaders& headers){
-    _data.merge(headers._data);
+HttpHeaders HttpHeaders::merge(const HttpHeaders& headers){
+    for (const auto& [key, value] : headers._data) {
+        _data[key] = value; 
+    }
     return *this;
 }
 

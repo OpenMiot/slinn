@@ -48,6 +48,7 @@ public:
     std::vector<std::string> values(std::string key, const std::vector<py::object>& default_values = {}) const;
     HttpHeaders add(std::string key, const py::object& value);
     HttpHeaders add_many(std::unordered_map<std::string, std::vector<py::object>> headers);
+    HttpHeaders set_many(std::unordered_map<std::string, std::vector<py::object>> headers);
     void _add(std::string key, const std::string& value);
     HttpHeaders set(std::string key, const py::object& value);
     HttpHeaders del(std::string key);
@@ -57,7 +58,7 @@ public:
     py::bytes make() const;
     
     HttpHeaders extend(const HttpHeaders& headers);
-    HttpHeaders merge(HttpHeaders& headers);
+    HttpHeaders merge(const HttpHeaders& headers);
 
     std::string __request_str__() const;
 };

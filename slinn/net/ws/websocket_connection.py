@@ -1,24 +1,29 @@
 from __future__ import annotations
 from slinn.net.ws import WebSocketFrame, WebSocketOpcodes, WebSocketHandshake
-from slinn.net.http.responses import HttpChunkResponse
+from slinn.net.http import HttpHeaders
+from slinn.net.http.responses import HttpHeadersMixin
+from slinn.net.tcp import TcpPipe
 from slinn.exceptions import NotAWebSocketConnection
 
 
 class WebSocketConnection:
-    def __init__(self, request: 'HttpRequest'):
-        self.request = request
-        self.client_pipe = request.client_pipe
+    def __init__(self, recv_headers: HttpHeaders, client_pipe: TcpPipe):
+        self.recv_headers = recv_headers
+        self.client_pipe = client_pipe
 
     async def handshake(self):
-        if 'Sec-WebSocket-Key' not in self.request.headers:
+        if 'Sec-WebSocket-Key' not in self.recv_headers:
             raise NotAWebSocketConnection()
         await self.client_pipe.send(
-            WebSocketHandshake(self.request.headers['Sec-WebSocket-Key']).make(self.request.version)
+            await WebSocketHandshake(self.recv_headers.get('Sec-WebSocket-Key')).make(
+                HttpHeadersMixin,
+                recv_headers = self.recv_headers
+            )
         )
 
     async def _send(self, opcode: WebSocketOpcodes, payload: bytes):
         frame = WebSocketFrame(True, opcode, False, payload)
-        await self.client_pipe.send(HttpChunkResponse(WebSocketFrame.pack(frame)).make())
+        await self.client_pipe.send(WebSocketFrame.pack(frame))
 
     async def send_binary(self, payload: bytes):
         await self._send(WebSocketOpcodes.BINARY, payload)
@@ -68,7 +73,6 @@ class WebSocketConnection:
         else:
             data += await self.client_pipe.recv(payload_len)
         frame = WebSocketFrame.unpack(data)
-        if frame.opcode == WebSocketOpcodes.CLOSE:
-            if not self.closed:
-                self.client_pipe.connection.close()
+        if frame.opcode == WebSocketOpcodes.CLOSE and not self.closed:
+            self.client_pipe.close()
         return frame

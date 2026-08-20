@@ -12,7 +12,7 @@ class Filter:
     Base class for filtering requests
     """
     
-    def __init__(self, _filter: str, methods: tuple = ('GET', 'POST')) -> None:
+    def __init__(self, _filter: str, methods: tuple = ('GET', )) -> None:
         self.filter = re.compile(_filter)
         self.methods = methods
 

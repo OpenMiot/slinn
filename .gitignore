@@ -25,3 +25,5 @@ htmlcov/
 site/
 *.pyd
 .vscode/
+test2
+uv.lock

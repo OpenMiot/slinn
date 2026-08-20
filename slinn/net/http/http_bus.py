@@ -31,20 +31,17 @@ class HttpBus(BaseBus):
         loop = asyncio.get_running_loop()
         t3 = loop.time()
         responder = HttpResponder(client_pipe, self.file_types_router, self.http_codes_router)
-        endpoints = []
         meta = {
             'client_pipe': client_pipe,
             'client_address': client_address,
             'request': request,
         }
+        endpoint = None
         for router in self.routers:
             if router.check(**meta):
-                endpoints.extend(router.endpoints)
-        endpoint = None
-        for _endpoint in endpoints:
-            if _endpoint.filter.check(**meta):
-                endpoint = _endpoint
-                break
+                endpoint = router.get_endpoint(**meta)
+                if endpoint:
+                    break
         if not endpoint:
             endpoint = self.http_codes_router[404]
         t4 = loop.time()

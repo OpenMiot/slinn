@@ -144,63 +144,6 @@ class HttpServer(ServerProtocol):
         self.handle_pipe = self._server.handle_pipe
         self.shutdown = self._server.shutdown
 
-        """@self._router(HttpServer._TcpAnyFilter())
-        async def http_endpoint(client_pipe: TcpPipe, client_address: Address):
-            loop = asyncio.get_running_loop()
-            args = {}
-            bus = HttpBus(client_pipe, self.routers, self._file_types_router, self._http_codes_router)
-            while not client_pipe.closed:
-                t0 = loop.time()
-                args['max_requests'] = args.get('max_requests', self._max_requests)
-                client_pipe.set_timeout(min(self._server.max_timeout, args.get('timeout', self._server.timeout)))
-                args['max_requests'] -= 1
-                if not args['max_requests']:
-                    client_pipe.close()
-                    return
-                try:
-                    data = bytearray()
-                    while b'\r\n\r\n' not in data:
-                        try:
-                            chunk = await client_pipe.recv(self._server.max_bytes_per_receive)
-                            data.extend(chunk)
-                            if not chunk or not data:
-                                break
-                        except asyncio.CancelledError, TimeoutError:
-                            break
-                    t1 = loop.time()
-                    if not data:
-                        continue
-                    data = data.split(b'\r\n\r\n')
-                    def _repr(request) -> str:
-                        return _('[{method}] request {link} from {client_addr} on {authority}').format(
-                            method = request.headers.method,
-                            link = request.headers.path,
-                            client_addr = ('' if '.' in request.client_address.host else '[') +
-                                            (request.client_address.host) +
-                                            ('' if '.' in request.client_address.host else ']') +
-                                            ':' +
-                                            str(request.client_address.port),
-                            authority = request.headers.authority
-                        )
-                    client_pipe.paste(b'\r\n\r\n'.join(data[1:]))
-                    _headers = HttpHeaders.parse(data[0])
-                    request = HttpRequest(
-                        client_address, _headers, HttpRequestBody(_headers, client_pipe)
-                    )
-                    t2 = loop.time()
-                    #self.logger.info(_repr(request))
-                    t3 = loop.time()
-                    await bus.dispatch(
-                        HttpRequestReceived,
-                        request = request
-                    )
-                except KeyError:
-                    self.logger.info(_('Got KeyError, probably invalid request. Ignore'))
-                    continue
-                except UnicodeDecodeError:
-                    self.logger.info(_('Got UnicodeDecodeError, probably invalid header. Ignore'))
-                    continue"""
-
     async def reload(self, *routers: HttpRouter) -> None:
         self.routers = routers
         await self._server.reload()

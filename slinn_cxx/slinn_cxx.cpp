@@ -50,6 +50,7 @@ PYBIND11_MODULE(slinn_cxx, m) {
              py::arg("default_values") = std::vector<py::object>())
         .def("add", &HttpHeaders::add, py::return_value_policy::move)
         .def("add_many", &HttpHeaders::add_many, py::return_value_policy::move)
+        .def("set_many", &HttpHeaders::set_many, py::return_value_policy::move)
         .def("set", &HttpHeaders::set, py::return_value_policy::move)
         .def("delete", &HttpHeaders::del, py::return_value_policy::move)
         .def("pop", &HttpHeaders::pop,
@@ -60,6 +61,4 @@ PYBIND11_MODULE(slinn_cxx, m) {
         .def("make", &HttpHeaders::make)
         .def("extend", &HttpHeaders::extend)
         .def("merge", &HttpHeaders::merge);
-    
-    m.def("representate", &representate);
 }

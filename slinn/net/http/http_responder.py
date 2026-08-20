@@ -27,26 +27,45 @@ class HttpResponder:
         t0 = loop.time()
         coro = optional(endpoint.function, **args)
         resp_headers: HttpHeaders | None = None
+        ignore_body = hasattr(endpoint.function, 'ignore_body') and endpoint.function.ignore_body
+        bytes_resp = bytearray()
         if not endpoint.is_generator:
-            resp_headers = await self.answer_response(await coro, request, args, resp_headers, extend_headers)
+            bytes_resp, resp_headers = await self.answer_response(
+                await coro,
+                request,
+                args,
+                resp_headers,
+                extend_headers,
+                ignore_body = ignore_body
+            )
         else:
             async for response in coro:
-                resp_headers = await self.answer_response(response, request, args, resp_headers, extend_headers)
+                if bytes_resp:
+                    await self.client_pipe.send(bytes_resp)
+                bytes_resp, resp_headers = await self.answer_response(
+                    response,
+                    request,
+                    args,
+                    resp_headers,
+                    extend_headers,
+                    ignore_body = ignore_body
+                )
         t1 = loop.time()
         if skip_body:
             await request.body.skip()
         t2 = loop.time()
         if trail and resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', '').lower():
-            await self.client_pipe.send(b'0\r\n')
+            bytes_resp.extend(b'0\r\n')
             if 'server-timing' in resp_headers.get('Trailer', '').lower():
-                await self.client_pipe.send(
+                bytes_resp.extend(
                     (
                         'Server-Timing: '
                         f'endpoint;desc="Making response";dur={(t1-t0)*1000},'
                         f'skip;desc="Body skip";dur={(t2-t1)*1000}\r\n'
                     ).encode()
                 )
-            await self.client_pipe.send(b'\r\n')
+            bytes_resp.extend(b'\r\n')
+        await self.client_pipe.send(bytes_resp)
         if may_close and request.headers.get(
             'Connection', 'close' if request.headers.version == HttpVersion.H1 else 'Keep-Alive') == 'close':
             self.client_pipe.close()
@@ -59,13 +78,15 @@ class HttpResponder:
         args: frozendict,
         resp_headers: HttpHeaders,
         extend_headers: HttpHeaders,
-    ) -> HttpHeaders:
+        ignore_body: bool = False
+    ) -> tuple[bytearray, HttpHeaders | None]:
         if not response:
-            return
+            return bytearray(), None
         if isinstance(response, int):
             return await self.handle_endpoint(self.http_codes_router[response], request, args, extend_headers)
         if not isinstance(response, HttpBodyMixin) and not isinstance(response, HttpHeadersMixin):
             response = HttpResponse(response)
+        bytes_resp = bytearray()
         if isinstance(response, HttpHeadersMixin) and not resp_headers:
             resp_headers = extend_headers
             if args['request'].headers.version == HttpVersion.H11:
@@ -74,15 +95,16 @@ class HttpResponder:
                     'Transfer-Encoding': ('chunked', )
                 })
             response.headers.extend(resp_headers)
-            await self.client_pipe.send(
+            bytes_resp.extend(
                 await response.make(
                     HttpHeadersMixin,
-                    request = args['request'],
+                    recv_headers = args['request'].headers,
                     ft_router = self.file_types_router
                 )
             )
-        await self.client_pipe.send(await response.make(
-            HttpBodyMixin,
-            chunked = resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', '')
-        ))
-        return resp_headers
+        if not ignore_body:
+            bytes_resp.extend(await response.make(
+                HttpBodyMixin,
+                chunked = resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', '')
+            ))
+        return bytes_resp, resp_headers

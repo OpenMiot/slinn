@@ -5,4 +5,4 @@
 namespace py = pybind11;
 
 // Экспортируемая функция representate
-py::object representate(py::object obj);
+std::string representate(py::object obj);

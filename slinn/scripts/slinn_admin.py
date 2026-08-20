@@ -1,16 +1,18 @@
 from slinn.preprocessor import Preprocessor
-from slinn import root
+from slinn import root, _
 from slinn.tools.manage.command import Command
 from slinn.tools.manage.colorcodes import *
 from slinn.tools.manage.help_generator import help_generator
+from slinn.tools.manage.misc import validate_name
 from slinn.api import StorageApi
-import venv
 import sys
 import os
 import slinn
 import shutil
 import platform
 import stat
+import asyncio
+import subprocess
 
 
 root_command = Command()
@@ -18,135 +20,77 @@ pp = Preprocessor()
 slinn_root = StorageApi(root)
 
 
-@root_command.subcommand('init', ('path', ))
-def create_command(args: dict):
-    def _install_scripts(scripts: dict[str, str], path: str):
-        def _install_script(script: tuple[str, str]):
-            if platform.system() == 'Windows':
-                script_path = os.path.join(path, f'{script[0]}.bat')
-                with open(script_path, 'w') as f:
-                    f.write(f'@echo off\r\n{os.path.abspath(os.path.join(path, "python.exe"))} -m {script[1]} %* & call call\r\n')
-            else:
-                script_path = os.path.join(path, f'{script[0]}')
-                with open(script_path, 'w') as f:
-                    f.write(f'#!/usr/bin/sh\n{os.path.abspath(os.path.join(path, "python"))} -m {script[1]} $*\n')
-                os.chmod(script_path, os.stat(script_path).st_mode | (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
-        for script in scripts.items():
-            _install_script(script)
-    def _install_modules(modules: tuple[str, ...], path: str):
-        def _install_module(name: str):
-            try:
-                shutil.copytree(
-                    os.path.abspath(__import__(name).__file__).replace('__init__.py', ''),
-                    path + f'/{name}',
-                    dirs_exist_ok=True
-                )
-            except (FileNotFoundError, ModuleNotFoundError):
-                print(f'{BLUE}{name} was not installed{RESET}')
-        for module in modules:
-            _install_module(module)
-    apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
-    if not os.path.isdir(apppath):
-        os.mkdir(apppath)
+@root_command.subcommand('init', ('path', 'name', 'slinn_location'))
+async def create_command(path: str = '.', name: str = 'slinn_project', slinn_location: str | None = None):
+    if not os.path.isdir(path):
+        os.mkdir(path)
     else:
-        print(f'{BLUE}{apppath} has already existed{RESET}')
-    shutil.copyfile(slinn.root + '/defaults/project/manage.py', f'{apppath}/manage.py')
-    shutil.copyfile(slinn.root + '/defaults/project/htrf.py', f'{apppath}/htrf.py')
-    shutil.copyfile(slinn.root + '/defaults/project/hc_routing.py', f'{apppath}/hc_routing.py')
-    shutil.copyfile(slinn.root + '/defaults/project/project.json', f'{apppath}/project.json')
-    venv.create(f'{apppath}/venv', with_pip=True)
-    binaries_dir = f'{apppath}/venv/Scripts' \
-                   if platform.system() == 'Windows' else \
-                   f'{apppath}/venv/bin'
-    packages_dir = f'{apppath}/venv/Lib/site-packages' \
-                   if platform.system() == 'Windows' else \
-                   f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
-    os.makedirs(packages_dir, exist_ok=True)
-    _install_modules(
-        (
-            'slinn', 'dexir', 'wheel', 'pybind11', 'scikit-build-core', 'tomlkit', 'orjson', 'babel', 'pydantic',
-            'uvloop', 'winloop'
-        ),
-        packages_dir
-    )
-    _install_scripts(
-        {
-            'slinn-admin': 'slinn.scripts.slinn_admin',
-            'slinn': 'slinn.scripts.slinn',
-            'spm': 'slinn.scripts.spm'
-        },
-        binaries_dir
-    )
+        print(f'{BLUE}{path} has already existed{RESET}')
+    os.chdir(path)
+    shutil.copyfile(f'{slinn.root}/defaults/project/ft_routing.py', 'ft_routing.py')
+    shutil.copyfile(f'{slinn.root}/defaults/project/hc_routing.py', 'hc_routing.py')
+    shutil.copyfile(f'{slinn.root}/defaults/project/slinn.toml', 'slinn.toml')
+    with (
+        open(f'{slinn.root}/defaults/project/pyproject.toml', 'r') as rfile,
+        open('pyproject.toml', 'w') as wfile
+    ):
+        wfile.write(rfile.read().format(
+            name = name,
+            slinn_dep = 'slinn' + (f' @ {slinn_location}' if slinn_location else ' >= 3.0.0')
+        ))
+    
+    env = os.environ.copy()
+    env["VIRTUAL_ENV"] = 'venv'
+    await asyncio.to_thread(subprocess.run, ('uv', 'sync', '--active'), check = True, env = env)
+    
+    binaries_dir = 'venv\\Scripts' if platform.system() == 'Windows' else 'venv/bin'
     slinn_script_path = os.path.join(
         binaries_dir,
-        '/slinn' + ('.bat' if platform.system() == 'Windows' else '')
+        'slinn' + ('.exe' if platform.system() == 'Windows' else '')
     )
-    with open(f'{apppath}/start.bat', 'w') as f:
+    print(slinn_script_path, binaries_dir)
+    with open('start.bat', 'w') as f:
         f.write(f'{slinn_script_path} run\r\n')
-    with open(f'{apppath}/start.sh', 'w') as f:
+    with open('start.sh', 'w') as f:
         f.write(f'{slinn_script_path} run\n')
     os.chmod(
-        f'{apppath}/start.sh',
-        stat.S_IMODE(os.lstat(f'{apppath}/start.sh').st_mode) | stat.S_IEXEC
+        'start.sh',
+        stat.S_IMODE(os.lstat('start.sh').st_mode) | stat.S_IEXEC
     )
     print(f'{GREEN}Project has created{RESET}')
     try:
-        shutil.copytree(f'{slinn.root}/templates/firstrun/', f'{apppath}/firstrun',
+        shutil.copytree(f'{slinn.root}/templates/firstrun/', 'firstrun',
                         ignore=shutil.ignore_patterns('data'))
-        shutil.copytree(f'{slinn.root}/templates/firstrun/data/', f'{apppath}/templates_data/firstrun')
+        shutil.copytree(f'{slinn.root}/templates/firstrun/data/', 'templates_data/firstrun')
         print(f'{GREEN}Template firstrun successfully installed{RESET}')
     except FileExistsError:
         print(f'{BLUE}Template firstrun has already existed installed{RESET}')
     except FileNotFoundError:
         print(f'{BLUE}Template firstrun not found{RESET}')
 
-
-@root_command.subcommand('update-project', ('path', ))
-def update_command(args):
-    apppath = (args['path'] + '?').replace('/?', '').replace('?', '') if 'path' in args.keys() else '.'
-    if not os.path.isdir(apppath):
-        return print(f'{BLUE}`{apppath}` does not exist{RESET}')
-    packages_dir = f'{apppath}/venv/Lib/site-packages' \
-                   if platform.system() == 'Windows' else \
-                   f'{apppath}/venv/lib/python{".".join(sys.version.split(" ")[0].split(".")[:-1])}/site-packages'
-    if not os.path.isdir(packages_dir + '/slinn'):
-        return print(f'{RED}Virtual environment directory is corrupted. Reinstall the project{RESET}')
-    if not os.path.isfile(apppath + '/manage.py'):
-        return print(f'{RED}manage.py file does not exist. Reinstall the project{RESET}')
-    shutil.rmtree(packages_dir + '/slinn')
-    os.remove(apppath + '/manage.py')
-    shutil.copytree(slinn.root, packages_dir + '/slinn')
-    shutil.copyfile(slinn.root + '/defaults/project/manage.py', f'{apppath}/manage.py')
-    return print(f'{GREEN}Project has updated{RESET}')
-
-
 @root_command.subcommand('help')
-def help_command():
+async def help_command():
     print(help_generator('Slinn Admin', sys.argv[0], {
-        'init {project`s name}': 'create project',
-        'update-project {project`s name}': 'update project',
+        'init path={project`s path} name={project`s name} slinn_location={location of slinn package}': 'create project',
         'help': 'display this message',
         'version': 'display slinn`s version',
     }))
 
-
 @root_command.subcommand('version')
-def version_command():
+async def version_command():
     print(slinn.version)
 
-
 @root_command.command_not_exists()
-def default_command():
+async def default_command():
     print(f'{RED}Command not exists{RESET}')
 
-
 @root_command.command_not_specified()
-def command_not_specified():
+async def command_not_specified():
     print(f'{RED}Command was not specified{RESET}')
 
 
 def main():
-    root_command(sys.argv[1:])()
+    asyncio.run(root_command(sys.argv[1:]))
 
 if __name__ == '__main__':
     main()

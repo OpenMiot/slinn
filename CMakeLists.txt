@@ -26,7 +26,8 @@ set_target_properties(slinn_cxx PROPERTIES
 )
 
 # Установить модуль в Python site-packages
-install(TARGETS slinn_cxx DESTINATION ${Python_SITELIB})
+#install(TARGETS slinn_cxx DESTINATION ${Python_SITELIB})
+install(TARGETS slinn_cxx DESTINATION ".")
 
 install(DIRECTORY dexir/ DESTINATION dexir
         PATTERN "*.pyc" EXCLUDE
