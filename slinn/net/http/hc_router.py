@@ -1,4 +1,4 @@
-from .exceptions import EndpointNotFound
+from ...exceptions import EndpointNotFound
 from slinn.net import Endpoint
 from slinn.net.http.responses import HttpResponse
 from slinn.net.http.filters import AnyFilter
@@ -23,7 +23,6 @@ class HCRouter:
             '201 Created',
             '202 Accepted',
             '203 Non-Authoritative Information',
-            '204 No Content',
             '205 Reset Content',
             '206 Partial Content',
             '207 Multi-Status',
@@ -77,6 +76,10 @@ class HCRouter:
             '510 Not Extended',
             '511 Network Authentification Required'
         )
+
+        @self(204)
+        async def endpoint():
+            return HttpResponse('', status = '204 No Content')
 
     def __getitem__(self, key: int) -> Endpoint:
         if str(key) in self.functions:

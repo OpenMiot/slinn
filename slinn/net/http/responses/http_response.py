@@ -1,37 +1,42 @@
-from . import HttpHeaderResponse, HttpChunkResponse
+from . import HttpHeadersMixin, HttpBodyMixin
 from slinn.net.http import HttpHeaders
 from slinn.utils import representate
 from typing import Any
-import gzip
+from collections.abc import Callable, Iterable
 
 
-class HttpResponse(HttpHeaderResponse, HttpChunkResponse):
+class HttpResponse(HttpHeadersMixin, HttpBodyMixin):
     """
     Base class for all HTTP responses
     """
 
     def __init__(
         self,
-        payload: Any,
-        data: HttpHeaders | None = None,
+        payload: Any = b'',
+        headers: HttpHeaders | None = None,
         status: str = '200 OK',
         content_type: str = 'text/plain; charset=utf-8',
-        use_gzip: bool = True,
-        headers: HttpHeaders | None = None
+        *,
+        headers_mixin: bool = True,
+        body_mixin: bool = True,
+        hooks: dict[Callable, Iterable[type]] | None = None
     ):
         payload = representate(payload)
-        #use_gzip = use_gzip and request and 'gzip' in request.accept_encoding
-        use_gzip = False
-        if use_gzip:
-            payload = gzip.compress(payload)
 
-        HttpHeaderResponse.__init__(
-            self,
-            (data or HttpHeaders()).add('Content-Length', len(payload)),
-            status,
-            content_type
-        )
-        HttpChunkResponse.__init__(self, payload)
+        if headers_mixin:
+            HttpHeadersMixin.__init__(
+                self,
+                headers = headers or HttpHeaders(),
+                status = status,
+                content_type = content_type
+            )
+        if body_mixin:
+            HttpBodyMixin.__init__(self, payload)
 
-    def make(self, headers: HttpHeaders) -> bytes:
-        return HttpChunkResponse.make(self, headers)
+        self.hooks = hooks or {}
+
+    async def make(self, mixin: type, **kwargs) -> bytes:
+        for callback, mixins in self.hooks.items():
+            if mixin in mixins:
+                kwargs = await callback(self, **kwargs)
+        return await mixin.make(self, **kwargs)

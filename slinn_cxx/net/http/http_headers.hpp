@@ -55,8 +55,9 @@ public:
     std::vector<std::string> keys() const;
     bool __contains__(std::string key) const;
     py::bytes make() const;
-
+    
     HttpHeaders extend(const HttpHeaders& headers);
+    HttpHeaders merge(HttpHeaders& headers);
 
     std::string __request_str__() const;
 };

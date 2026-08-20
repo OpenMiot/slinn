@@ -1,91 +1,154 @@
 import asyncio
 from typing import Iterable, Any
-from slinn.net.tcp import TcpServer, TcpPipe, TcpRouterProtocol
-from slinn.net.http import HttpRouter, HttpVersion, HttpHeaders, HttpRequestBody
-from slinn.net.http.exceptions import HttpHeaderAlreadySent
-from slinn.net.http.responses import HttpResponse, HttpChunkResponse, HttpHeaderResponse
+from slinn.net.tcp import TcpServer, TcpPipe, BaseTcpBus
+from slinn.net.tcp.events import DataReceived
+from slinn.net.http import HttpRouter, HttpHeaders, HttpRequest, HttpRequestBody, HCRouter, FTRouter, HttpBus
+from slinn.net.http.events import HttpRequestReceived
 from slinn.net.address import Address
-from slinn.net import ServerProtocol, FilterProtocol, Endpoint
+from slinn.net import ServerProtocol
+from slinn.eda import on
+lazy from slinn.api import ProjectApi, AppApi
 from slinn.tools.manage.misc import load_module
-from slinn.utils import optional
-from slinn import _, HCRouter
-import functools
+from slinn import _
 import logging
 import ssl
-import inspect
-import io
+import os
 
 
 class HttpServer(ServerProtocol):
-    class _TcpAnyFilter(FilterProtocol):
-        async def size(self) -> int:
-            return 0
-
-        def args(self) -> dict:
-            return {}
-
-    class _TcpRouter(TcpRouterProtocol):
-        def __init__(self):
-            self.endpoints: list[Endpoint] = []
-
-        def __call__(self, request_filter: HttpServer._TcpAnyFilter):
-            def decorator(func):
-                if inspect.isasyncgenfunction(func):
-                    @functools.wraps(func)
-                    async def wrapper(*args, **kwargs):
-                        async for item in func(*args, **kwargs):
-                            yield item
-                else:
-                    @functools.wraps(func)
-                    async def wrapper(*args, **kwargs):
-                        return await func(*args, **kwargs)
-
-                self.endpoints = [Endpoint(request_filter, wrapper, request_filter.args)]
-                return wrapper
-
-            return decorator
-
-        def check(self, *args, **kwargs) -> bool:
-            return True
+    class _TcpBus(BaseTcpBus):
+        def __init__(
+            self,
+            max_requests: int,
+            routers: Iterable[HttpRouter],
+            file_types_router: FTRouter,
+            http_codes_router: HCRouter,
+            logger: logging.Logger
+        ):
+            super().__init__()
+            self.max_requests = max_requests
+            self.routers = routers
+            self.file_types_router = file_types_router
+            self.http_codes_router = http_codes_router
+            self.logger = logger
+            self.buffer = bytearray()
+        
+        @on(DataReceived())
+        async def on_data_received(self, data: bytes, client_pipe: TcpPipe, client_address: Address):
+            if not hasattr(self.on_data_received.__func__, 'context'):
+                self.on_data_received.__func__.context = {}
+            if client_pipe not in self.on_data_received.__func__.context:
+                self.on_data_received.__func__.context[client_pipe] = {
+                    'requests_left': self.max_requests,
+                    'bus': HttpBus(
+                        routers = self.routers,
+                        file_types_router = self.file_types_router,
+                        http_codes_router = self.http_codes_router
+                    )
+                }
+            if self.on_data_received.__func__.context[client_pipe]['requests_left'] < 1:
+                client_pipe.close()
+                return
+            
+            loop = asyncio.get_running_loop()
+            t1 = loop.time()
+            self.buffer.extend(data)
+            if b'\r\n\r\n' not in self.buffer:
+                return
+            try:
+                buffer, self.buffer = self.buffer.split(b'\r\n\r\n'), bytearray()
+                def _repr(request) -> str:
+                    return _('[{method}] request {link} from {client_addr} on {authority}').format(
+                        method = request.headers.method,
+                        link = request.headers.path,
+                        client_addr = ('' if '.' in request.client_address.host else '[') +
+                                        (request.client_address.host) +
+                                        ('' if '.' in request.client_address.host else ']') +
+                                        ':' +
+                                        str(request.client_address.port),
+                        authority = request.headers.authority
+                    )
+                client_pipe.paste(b'\r\n\r\n'.join(buffer[1:]))
+                _headers = HttpHeaders.parse(buffer[0])
+                request = HttpRequest(
+                    client_address, _headers, HttpRequestBody(_headers, client_pipe)
+                )
+                t2 = loop.time()
+                #self.logger.info(_repr(request))
+                t3 = loop.time()
+                await self.on_data_received.__func__.context[client_pipe]['bus'].dispatch(
+                    HttpRequestReceived(),
+                    request = request,
+                    client_pipe = client_pipe,
+                    client_address = client_address,
+                    extend_headers = HttpHeaders(default_headers={
+                        'Server-Timing': ((
+                            f'parse;desc="Parsing request";dur={(t2-t1)*1000},'
+                            f'log;desc="Logging request";dur={(t3-t2)*1000},'
+                        ), )
+                    })
+                )
+            except KeyError:
+                self.logger.info(_('Got KeyError, probably invalid request. Ignore'))
+                client_pipe.close()
+            except UnicodeDecodeError:
+                self.logger.info(_('Got UnicodeDecodeError, probably invalid header. Ignore'))
+                client_pipe.close()
+            
 
     def __init__(
         self,
         address: Address,
         protocols_config: dict[str, dict[str, Any]],
-        routers: Iterable[HttpRouter],
         logger: logging.Logger,
+        buses: Iterable[HttpBus] | None = None,
         ssl_context: ssl.SSLContext | None = None
     ) -> None:
-        self.routers = routers
         self.logger = logger
-
-        self._router = HttpServer._TcpRouter()
-        self._server = TcpServer(
-            address = address,
-            protocols_config = protocols_config,
-            routers = (self._router, ),
-            logger = logger,
-            ssl_context = ssl_context
-        )
 
         self.http_config = protocols_config.get('http', {})
 
         self._max_requests = self.http_config['max_requests']
         self._max_header_size = self.http_config['max_header_size']
 
+        self.project = ProjectApi(os.getcwd())
+        self.project.load_config()
+        self.routers = [*app.load_http_routers() for app in self.project.load_apps()]
+        
         self._http_codes_router = HCRouter()
         if 'http_codes_router' in self.http_config:
             *mod, obj =  self.http_config['http_codes_router'].split('.')
             self._http_codes_router = getattr(load_module('/'.join(mod)+'.py'), obj)
 
-        #self.listen = self._server.listen
+        self._file_types_router = FTRouter()
+        if 'file_types_router' in self.http_config:
+            *mod, obj =  self.http_config['file_types_router'].split('.')
+            self._file_types_router = getattr(load_module('/'.join(mod)+'.py'), obj)
+        
+        self.buses = list(buses or (HttpServer._TcpBus(
+            max_requests = self._max_requests,
+            routers = self.routers,
+            file_types_router = self._file_types_router,
+            http_codes_router = self._http_codes_router,
+            logger = self.logger
+        ), ))
+        
+        self._server = TcpServer(
+            address = address,
+            protocols_config = protocols_config,
+            logger = logger,
+            buses = self.buses,
+            ssl_context = ssl_context,
+        )
+        
         self.handle_pipe = self._server.handle_pipe
         self.shutdown = self._server.shutdown
 
-        @self._router(HttpServer._TcpAnyFilter())
+        """@self._router(HttpServer._TcpAnyFilter())
         async def http_endpoint(client_pipe: TcpPipe, client_address: Address):
             loop = asyncio.get_running_loop()
             args = {}
+            bus = HttpBus(client_pipe, self.routers, self._file_types_router, self._http_codes_router)
             while not client_pipe.closed:
                 t0 = loop.time()
                 args['max_requests'] = args.get('max_requests', self._max_requests)
@@ -108,120 +171,37 @@ class HttpServer(ServerProtocol):
                     if not data:
                         continue
                     data = data.split(b'\r\n\r\n')
-                    def _repr(hd) -> str:
+                    def _repr(request) -> str:
                         return _('[{method}] request {link} from {client_addr} on {authority}').format(
-                            method = hd.method,
-                            link = hd.path,
-                            client_addr = ('' if '.' in client_address.host else '[') +
-                                            (client_address.host) +
-                                            ('' if '.' in client_address.host else ']') +
+                            method = request.headers.method,
+                            link = request.headers.path,
+                            client_addr = ('' if '.' in request.client_address.host else '[') +
+                                            (request.client_address.host) +
+                                            ('' if '.' in request.client_address.host else ']') +
                                             ':' +
-                                            str(client_address.port),
-                            authority = hd.authority
+                                            str(request.client_address.port),
+                            authority = request.headers.authority
                         )
                     client_pipe.paste(b'\r\n\r\n'.join(data[1:]))
-                    headers = HttpHeaders.parse(data[0])
-                    body = HttpRequestBody(headers, client_pipe)
+                    _headers = HttpHeaders.parse(data[0])
+                    request = HttpRequest(
+                        client_address, _headers, HttpRequestBody(_headers, client_pipe)
+                    )
                     t2 = loop.time()
-                    #self.logger.info(_repr(headers))
+                    #self.logger.info(_repr(request))
                     t3 = loop.time()
-                    #request = HttpRequest(loop, header, client_address, client_pipe, self)
+                    await bus.dispatch(
+                        HttpRequestReceived,
+                        request = request
+                    )
                 except KeyError:
                     self.logger.info(_('Got KeyError, probably invalid request. Ignore'))
                     continue
                 except UnicodeDecodeError:
                     self.logger.info(_('Got UnicodeDecodeError, probably invalid header. Ignore'))
-                    continue
-                endpoints = []
-                meta = frozendict(
-                    client_pipe = client_pipe,
-                    client_address = client_address,
-                    headers = headers,
-                    body = body
-                )
-                for router in self.routers:
-                    if optional(router.check, **meta):
-                        endpoints += router.endpoints
-                sizes = [
-                    await optional(endpoint.filter.size, **meta)
-                    for endpoint in endpoints
-                ]
-                endpoint = None
-                if not sizes or max(sizes) < 0:
-                    endpoint = self._http_codes_router[404]
-                else:
-                    endpoint = endpoints[sizes.index(max(sizes))]
-                t4 = loop.time()
-                resp_headers = await handle_endpoint(endpoint, meta | args, HttpHeaders(default_headers = {
-                    'Server-Timing': ((
-                        f'recv;desc="Receiving request";dur={(t1-t0)*1000},'
-                        f'parse;desc="Parsing request";dur={(t2-t1)*1000},'
-                        f'log;desc="Logging request";dur={(t3-t2)*1000},'
-                        f'route;desc="Routing";dur={(t4-t3)*1000}'
-                    ),)
-                }), client_pipe)
-                t5 = loop.time()
+                    continue"""
 
-                await body.skip()
-                t6 = loop.time()
-
-                if resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', ''):
-                    await client_pipe.send(b'0\r\n')
-                    await client_pipe.send(
-                        f'Server-Timing: endpoint;desc="Making response";dur={(t5-t4)*1000},skip;desc="Body skip";dur={(t6-t5)*1000}\r\n'.encode()
-                    )
-                    await client_pipe.send(b'\r\n')
-                
-                if resp_headers.get('Connection', 'close' if resp_headers.version is HttpVersion.H1 else 'Keep-Alive') == 'close':
-                    client_pipe.close()
-                    return
-
-        async def handle_endpoint(
-            endpoint: Endpoint,
-            args: frozendict,
-            add_headers: HttpHeaders,
-            client_pipe: TcpPipe
-        ) -> HttpHeaders:
-            coro = optional(endpoint.function, **args)
-            if not endpoint.is_generator:
-                return await answer_response(await coro, args, None, add_headers, client_pipe)
-            resp_headers: HttpHeaders | None = None
-            async for response in coro:
-                resp_headers = await answer_response(response, args, resp_headers, add_headers, client_pipe)
-            return resp_headers
-
-        async def answer_response(
-            response: Any,
-            args: frozendict,
-            resp_headers: HttpHeaders,
-            add_headers: HttpHeaders,
-            client_pipe: TcpPipe
-        ) -> HttpHeaders:
-            if not response:
-                return
-            if isinstance(response, int):
-                return await handle_endpoint(self._http_codes_router[response], args, add_headers, client_pipe)
-            if not isinstance(response, HttpChunkResponse):
-                response = HttpResponse(response)
-            if isinstance(response, HttpHeaderResponse):
-                if resp_headers:
-                    raise HttpHeaderAlreadySent()
-                resp_headers = add_headers
-                if args['headers'].version == HttpVersion.H11:
-                    resp_headers.add_many({
-                        'Trailer': ('Server-Timing', ),
-                        'Transfer-Encoding': ('chunked', )
-                    })
-                response.headers.extend(resp_headers)
-                await client_pipe.send(response.make_headers(args['headers']))
-            made = response.make(args['headers'])
-            if resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', ''):
-                await client_pipe.send(b''.join((hex(len(made))[2:].upper().encode(), b'\r\n', made, b'\r\n')))
-            else:
-                await client_pipe.send(made)
-            return resp_headers
-
-    async def reload(self, *routers: TcpRouterProtocol) -> None:
+    async def reload(self, *routers: HttpRouter) -> None:
         self.routers = routers
         await self._server.reload()
 

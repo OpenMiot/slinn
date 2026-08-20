@@ -1,14 +1,19 @@
 from typing import Optional, Iterator
 from pydantic import BaseModel
-from slinn.net import RouterProtocol
+from slinn.eda import BaseBus
 from slinn.tools.manage.misc import load_module
 import tomllib
 
 
 class AppConfig(BaseModel):
     class App(BaseModel):
-        routers: list[str]
+        ...
     app: App = App(routers = [])
+    class Protocol(BaseModel):
+        class HTTP(BaseModel):
+            routers: list[str] = []
+        http: HTTP | None = HTTP()
+    protocol: Protocol | None = Protocol()
 
 
 class AppApi:
@@ -22,9 +27,9 @@ class AppApi:
     def create_app(name: str) -> AppApi:
         ...
 
-    def load_routers(self) -> Iterator[RouterProtocol]:
+    def load_http_routers(self) -> Iterator:
         files = {}
-        for _rn in self.config.app.routers:
+        for _rn in self.config.protocol.http.routers:
             router_name = _rn.split('.')
             file = f'{self.name}/{'/'.join(router_name[:-1])}.py'
             if file in files:

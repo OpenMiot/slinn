@@ -4,8 +4,8 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "slinn"
-version = "3.0.0a11"
-description = "An HTTP server framework"
+version = "3.0.0a12"
+description = "Универсальная сетевая платформа"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.15"
@@ -24,6 +24,8 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.15",
+    "Programming Language :: Python :: Free Threading",
+    "Programming Language :: Python :: Free Threading :: 1 - Unstable",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: C++",
 
@@ -38,7 +40,13 @@ classifiers = [
 
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
+
     "Framework :: AsyncIO",
+    "Framework :: Pytest",
+    "Framework :: Pydantic :: 2",
+
+    "Natural Language :: Russian",
+    "Natural Language :: English"
 ]
 
 [project.optional-dependencies]
@@ -88,6 +96,7 @@ i18n_update  = """pybabel extract -o slinn/locales/messages.pot . &&\
 i18n_compile = "pybabel compile -d slinn/locales"
 build = "poetry build"
 publish = "poetry publish"
+install = "pip install -e . --no-deps --no-build-isolation"
 
 [tool.pyrefly]
 project-includes = [

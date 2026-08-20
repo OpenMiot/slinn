@@ -302,6 +302,11 @@ HttpHeaders HttpHeaders::extend(const HttpHeaders& headers){
     return *this;
 }
 
+HttpHeaders HttpHeaders::merge(HttpHeaders& headers){
+    _data.merge(headers._data);
+    return *this;
+}
+
 
 std::string HttpHeaders::__request_str__() const{
 

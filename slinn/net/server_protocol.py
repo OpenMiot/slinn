@@ -1,21 +1,22 @@
 from typing import Protocol, Any, Optional, Iterable
-from slinn.net import RouterProtocol, PipeProtocol
+from slinn.net import PipeProtocol
 from slinn.net.address import Address
+from slinn.eda import BaseBus
 import logging
 import ssl
 
 
-class ServerProtocol[TRouterProtocol: RouterProtocol](Protocol):
+class ServerProtocol[TBus: BaseBus](Protocol):
     def __init__(
         self,
         address: Address,
         protocols_config: dict[str, dict[str, Any]],
-        routers: Iterable[TRouterProtocol],
         logger: logging.Logger,
-        ssl_context: Optional[ssl.SSLContext]
+        bus: TBus,
+        ssl_context: ssl.SSLContext | None
     ): ...
 
-    async def reload(self, *routers: TRouterProtocol) -> None: ...
+    async def reload(self, *routers: TBus) -> None: ...
 
     async def listen(self) -> None: ...
 

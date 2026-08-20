@@ -26,7 +26,7 @@ def _(text: str) -> str:
         except Exception:
             return text
 
-__PD = datetime(2026, 8, 16)
+__PD = datetime(2026, 8, 20)
 
 VERSION = frozendict(
     name = 'Slinn',
@@ -36,7 +36,7 @@ VERSION = frozendict(
         minor = 0,
         patch = 0,
         type = 'alpha',
-        revision = 11
+        revision = 12
     ),
     dies_at = __PD + timedelta(days=180),
     is_eap = True,
@@ -72,8 +72,6 @@ if VERSION['may_incompatible']:
 
 lazy from slinn.i_middleware import IMiddleware
 lazy from slinn.preprocessor import Preprocessor
-lazy from slinn.ftdispatcher import FTDispatcher
-lazy from slinn.hc_router import HCRouter
 lazy from slinn.dispatcher import Dispatcher
 lazy from slinn.migration import Migration
 lazy from slinn.template_protocol import TemplateProtocol

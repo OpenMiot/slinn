@@ -1,7 +1,8 @@
 from __future__ import annotations
-from slinn import FTDispatcher, _
+from slinn import _
 from slinn.net.tcp import TcpPipe
 from slinn.net.http import HttpHeaders, HttpVersion
+from typing import NamedTuple
 from slinn.net.address import Address
 import urllib.parse
 import asyncio
@@ -17,19 +18,7 @@ parse_header = lambda text: {
     for pair in text.split(',')[1:]
 }
 
-class HttpRequest:
-    __slots__ = (
-        'accept', 'accept_encoding', 'accept_language', 'args', 'body', 'client_pipe', 'connection', 'content_length',
-        'content_type', 'cookies', 'headers', 'host', 'ip', 'keep_alive', 'link', 'loop', 'method', 'path', 'port',
-        'protocol', 'server', 'type', 'user_agent', 'version',
-    )
-
-    """ 
-    Representation of HTTP request from client
-    """
-
-    
-
+"""class HttpRequest:
     def __init__(
         self,
         loop: asyncio.AbstractEventLoop,
@@ -93,7 +82,13 @@ class HttpRequest:
         conn = WebSocketConnection(self)
         await conn.handshake()
         conn.set_timeout(timeout)
-        return conn
+        return conn"""
+
+
+class HttpRequest(NamedTuple):
+    client_address: Address
+    headers: HttpHeaders
+    body: HttpRequestBody
 
 
 class HttpRequestBody:

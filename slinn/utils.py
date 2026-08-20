@@ -13,13 +13,12 @@ import importlib.util
 import enum
 
 
-rematcheswith = lambda text, reg: re.match('^' + reg + '$', text) is not None
-
-
 def optional(func, *p, **k) -> Any:
     params = inspect.signature(func).parameters
     args, kwargs = [], {}
     for i, positional in enumerate(p):
+        if i >= len(params):
+            break
         match params[tuple(params)[i]].kind.name:
             case 'POSITIONAL_ONLY' | 'POSITIONAL_OR_KEYWORD':
                 args.append(positional)

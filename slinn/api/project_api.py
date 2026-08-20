@@ -9,7 +9,7 @@ from slinn.tools.manage.defaults import APP_CONFIG
 from slinn.api.exceptions import (
     AppExistsException, AppNotExistException, TemplateNotExistsException, AppNameIsNotValidException
 )
-from slinn.net import RouterProtocol
+from slinn.eda import BaseBus
 from slinn.api import AppApi, StorageApi
 from typing import Optional, Iterator
 from pydantic import BaseModel
@@ -66,6 +66,7 @@ class ProjectConfig(BaseModel):
             max_header_size: int = 8192
             max_requests: int = 1000
             http_codes_router: str | None = None
+            file_types_router: str | None = None
         http: HTTP = HTTP()
 
         class WebSocket(BaseModel):
@@ -95,10 +96,10 @@ class ProjectApi:
         pkgs = packages()
         pkgs['plugins'] = plugins_sorted(pkgs['plugins'], pkgs)
 
-        routers = list(*app.load_routers() for app in self.load_apps())
+        """routers = list(*app.load_routers() for app in self.load_apps())
         if not routers:
             yield _('Routers not found. Check your apps, packages and ./project.json'), RED
-            return
+            return"""
 
         yield GRAY, False
         if self.config.apps:
@@ -125,7 +126,7 @@ class ProjectApi:
                 ...
         dispatcher = Dispatcher(
             addresses=addresses.values(),
-            routers=routers,
+            routers=(),
             protocols_config=self.config.protocols.model_dump(),
             logger=logging.getLogger(self.config.project.name)
         )

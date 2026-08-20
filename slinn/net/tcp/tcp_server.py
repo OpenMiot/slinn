@@ -1,8 +1,8 @@
 from typing import Iterable, Any
 from slinn.net.address import Address
-from slinn.net.tcp import TcpPipe, TcpRouterProtocol
+from slinn.net.tcp import TcpPipe, BaseTcpBus
+from slinn.net.tcp.events import DataReceived, Accepted
 from slinn.exceptions import SocketClosed
-from slinn.utils import optional
 from slinn import _
 import logging
 import asyncio
@@ -17,14 +17,14 @@ class TcpServer:
         self,
         address: Address,
         protocols_config: dict[str, dict[str, Any]],
-        routers: Iterable[TcpRouterProtocol],
         logger: logging.Logger,
-        ssl_context: ssl.SSLContext | None = None
+        buses: Iterable[BaseTcpBus] | None = None,
+        ssl_context: ssl.SSLContext | None = None,
     ) -> None:
         self.address: Address = address
         self.tcp_config: dict[str, Any] = protocols_config.get('tcp', {})
-        self.routers: Iterable[TcpRouterProtocol] = routers
         self.logger: logging.Logger = logger
+        self.buses = buses or (BaseTcpBus(), )
         self.ssl_context: ssl.SSLContext | None = ssl_context
 
         self.server_pipes: list[TcpPipe] = []
@@ -34,10 +34,9 @@ class TcpServer:
         self.max_timeout = self.tcp_config.get('_max_timeout', 60)
         self.max_bytes_per_receive = self.tcp_config.get('_max_bytes_per_receive', 65535)
 
-        self.debounce = 0.005
+        self.debounce = 0.0002
 
-    async def reload(self, *routers: TcpRouterProtocol) -> None:
-        self.routers = routers
+    async def reload(self, *args, **kwargs) -> None:
         self.logger.info(f'Server :{self.address.port} has reloaded')
 
     async def listen(self) -> None:
@@ -78,14 +77,12 @@ class TcpServer:
                         client_pipe, client_address = await server_pipe.accept()
                         del self.waiting_pipes[server_pipe]
                         event_loop.create_task(self.handle_pipe(client_pipe, client_address, {}))
-                    #self.waiting_pipes = set()
                 except KeyboardInterrupt:
                     raise
                 except Exception as e:
                     self.logger.warning(
                         _('During handling exception, an {exception} has occurred').format(exception = e), exc_info=True
                     )
-                    await self.reload(*self.routers)
                 await asyncio.sleep(self.debounce)
         except KeyboardInterrupt:
             await self.shutdown()
@@ -101,47 +98,25 @@ class TcpServer:
         client_pipe.set_timeout(min(self.max_timeout, args.get('timeout', self.timeout)))
         self.logger.debug(f'New TCP connection from {client_address.host}:{client_address.port} established')
         while not client_pipe.closed:
-            await asyncio.sleep(self.debounce)
             try:
-                endpoints = []
-                for router in self.routers:
-                    endpoints += router.endpoints
-                sizes = [
-                    await optional(
-                        endpoint.filter.size,
-                        client_pipe = client_pipe,
-                        client_address = client_address
-                    )
-                    for endpoint in endpoints
-                ]
-                if not sizes:
-                    await client_pipe.recv()
-                    continue
-                endpoint = endpoints[sizes.index(max(sizes))]
-                if max(sizes) < 0:
-                    await client_pipe.recv()
-                    continue
-                coro = optional(
-                    endpoint.function,
-                    client_pipe = client_pipe,
-                    client_address = client_address,
-                    **args
-                )
-                if endpoint.is_generator:
-                    async for response in coro:
-                        if response:
-                            await client_pipe.send(response)
-                else:
-                    response = await coro
-                    if response:
-                        await client_pipe.send(response)
+                try:
+                    data = await client_pipe.recv()
+                    for bus in self.buses:
+                        await bus.dispatch(
+                            DataReceived(),
+                            data,
+                            client_pipe,
+                            client_address
+                        )
+                except TimeoutError:
+                    ...
             except KeyboardInterrupt:
                 raise
             except SocketClosed:
                 continue
             except Exception as exception:
                 self.logger.warning(f'During handling pipe, an {exception} has occurred', exc_info=True)
-                await self.reload(*self.routers)
+                await self.reload()
                 continue
         self.logger.debug(f'TCP connection from {client_address.host}:{client_address.port} closed')
 

@@ -1,5 +1,4 @@
-from . import HttpChunkResponse
-from slinn.net.http import HttpHeaders, HttpVersion
+from slinn.net.http import HttpHeaders, HttpVersion, HttpRequest
 from typing import Any
 import slinn
 import enum
@@ -12,14 +11,13 @@ class CookieSameSite(enum.Enum):
     NONE = 2
 
 
-class HttpHeaderResponse(HttpChunkResponse):
+class HttpHeadersMixin:
     def __init__(
         self,
         headers: HttpHeaders | None = None,
         status: str = '200 OK',
         content_type: str = 'text/plain; charset=utf-8',
     ):
-        HttpChunkResponse.__init__(self, '')
         self.headers = headers or HttpHeaders()
         self.headers.add_many({
             'Content-Type': (content_type, ),
@@ -41,7 +39,7 @@ class HttpHeaderResponse(HttpChunkResponse):
         secure: bool | None = None,
         same_site: CookieSameSite | None = None,
         attributes: dict | None = None
-    ) -> HttpChunkResponse:
+    ) -> HttpHeadersMixin:
         attributes = attributes or {}
         attributes.update({
             'Domain': domain,
@@ -66,16 +64,16 @@ class HttpHeaderResponse(HttpChunkResponse):
         )
         return self
 
-    def make_headers(self, recv_headers: HttpHeaders) -> bytes:
-        self.headers.version = recv_headers.version
+    async def make(self, *, request: HttpRequest, **kwargs) -> bytes:
+        self.headers.version = request.headers.version
         self.headers.set(
             'Connection',
-            recv_headers.get('Connection', 'close' if recv_headers.version is HttpVersion.H1 else 'Keep-Alive')
+            request.headers.get('Connection', 'close' if request.headers.version == HttpVersion.H1 else 'Keep-Alive')
         )
         self.headers.set(
             'Date',
             slinn.utils.convert_datetime(datetime.datetime.now(datetime.UTC))
         )
-        if 'chunked' in self.headers.get('Transfer-Encoding', ''):
-            self.headers.delete('Content-Length')
+        if hasattr(self, 'payload') and 'chunked' not in self.headers.get('Transfer-Encoding', ''):
+            self.headers.set('Content-Length', len(self.payload))
         return self.headers.make()

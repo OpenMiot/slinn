@@ -1,6 +1,7 @@
 from . import Filter
-from slinn.net.http import HttpRequest
+from slinn.net.http import HttpHeaders
 from slinn.exceptions import PatternDoesNotMatch
+from slinn import _
 import re
 
 
@@ -13,17 +14,21 @@ class IPath(Filter):
     def __init__(self, pattern: str, methods: tuple[str, ...] = ('GET', 'POST')):
         super().__init__(pattern, methods)
         self.types = {}
-        self._pattern = pattern
-        for a in re.findall(r'<\w+ \w+>', pattern):
+        for a in self.filter.findall(r'<\w+ \w+>'):
             t, n = a[1:-1].split()
             t = eval(t.split()[0])
             self.filter = self.filter.replace(a, '(?P<'+n+'>' + t.REGEXP + ')')
             self.types[n] = t
 
-    def args(self, request: HttpRequest) -> dict:
-        args = re.search(self.filter, request.link)
+    def args(self, headers: HttpHeaders) -> dict:
+        args = re.search(self.filter, headers.link)
         if args is None:
-            raise PatternDoesNotMatch(f'A path matching template "{self._pattern}", but path "{request.full_link}" was given"')
+            raise PatternDoesNotMatch(
+                _('A path matching template "{pattern}", but path "{path}" was given"').format(
+                    pattern = self.filter.pattern,
+                    path = headers.full_link
+                )
+            )
         args = args.groupdict()
         return {
             n: self.types[n](args[n])

@@ -1,8 +1,9 @@
 from typing import Iterable, Any
-from slinn.net import ServerProtocol, RouterProtocol
+from slinn.net import ServerProtocol
 from slinn.net.address import Address
-from slinn.net.tcp import TcpServer, TcpRouterProtocol
+from slinn.net.tcp import TcpServer
 from slinn.net.http import HttpServer, HttpRouter
+from slinn.eda import BaseBus
 from slinn import _
 from dataclasses import dataclass
 import threading
@@ -29,7 +30,7 @@ def get_loop_factory():
 def server_factory(
     address: Address,
     protocols: dict[str, Protocol],
-    routers: Iterable[RouterProtocol],
+    buses: Iterable,
     protocols_config: dict[str, Any],
     logger: logging.Logger
 ) -> ServerProtocol:
@@ -37,12 +38,8 @@ def server_factory(
     return protocol.server_class(
         address,
         protocols_config,
-        [
-            router
-            for router in routers
-            if type(router) is protocol.router_class
-        ],
         logger,
+        None,
         None
     )
 
@@ -51,14 +48,14 @@ def server_factory(
 class Protocol:
     protocol_name: str
     server_class: type[ServerProtocol]
-    router_class: type[RouterProtocol]
+    bus_class: type[BaseBus]
 
 
 class Dispatcher:
     def __init__(
         self,
         addresses: Iterable[Address],
-        routers: Iterable[RouterProtocol],
+        routers: Iterable,
         protocols_config: dict[str, Any],
         logger: logging.Logger,
     ):
@@ -70,16 +67,16 @@ class Dispatcher:
 
         self._main_thread: threading.Thread = threading.main_thread()
 
-        self.register_protocol('tcp', TcpServer, TcpRouterProtocol)
-        self.register_protocol('http', HttpServer, HttpRouter)
+        #self.register_protocol('tcp', TcpServer, TcpRouterProtocol)
+        self.register_protocol('http', HttpServer, None)
 
     def register_protocol(
         self,
         protocol_name: str,
         server_class: type[ServerProtocol],
-        router_class: type[RouterProtocol]
+        bus_class: type[BaseBus]
     ):
-        self.protocols[protocol_name] = Protocol(protocol_name, server_class, router_class)
+        self.protocols[protocol_name] = Protocol(protocol_name, server_class, bus_class)
 
     def start(self):
         def run_servers():

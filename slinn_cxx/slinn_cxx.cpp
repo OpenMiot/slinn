@@ -58,7 +58,8 @@ PYBIND11_MODULE(slinn_cxx, m) {
         .def("keys", &HttpHeaders::keys)
         .def("__contains__", &HttpHeaders::__contains__)
         .def("make", &HttpHeaders::make)
-        .def("extend", &HttpHeaders::extend);
+        .def("extend", &HttpHeaders::extend)
+        .def("merge", &HttpHeaders::merge);
     
     m.def("representate", &representate);
 }
