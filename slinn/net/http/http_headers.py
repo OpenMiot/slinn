@@ -138,31 +138,36 @@ from slinn_cxx import HttpHeaders, HttpVersion, HttpProtocol
 
 if __name__ == '__main__':
     import time
-    count = 500000
+    count = 1000000
 
-    _start = time.time()
-    for i in range(500000):
+    _start = time.time_ns()
+    for i in range(count):
         HttpHeaders.parse(b"GET / HTTP/1.1\r\nHost: miot.su\r\n\r\n")
-    print(f'C++ parsing {count} times', time.time() - _start)
+    _end = time.time_ns()
+    print(f'C++ parsing {count} times', _end - _start, 'ns', (_end - _start) / count, 'ns', count / (_end - _start) * 10**9, 'per s')
 
-    _start = time.time()
-    for i in range(500000):
+    _start = time.time_ns()
+    for i in range(count):
         _HttpHeaders.parse(b"GET / HTTP/1.1\r\nHost: miot.su\r\n\r\n")
-    print(f'Python parsing {count} times', time.time() - _start)
+    _end = time.time_ns()
+    print(f'Python parsing {count} times', _end - _start, 'ns', (_end - _start) / count, 'ns', count / (_end - _start) * 10**9, 'per s')
 
-    headers = HttpHeaders()
-    headers.set(':status', '200 OK')
-    headers.set('Server', 'Slinn')
-    _start = time.time()
-    for i in range(500000):
+    headers = HttpHeaders(default_headers = {
+        ':status': ('200 OK',),
+        'Server': ('Slinn',)
+    })
+    _start = time.time_ns()
+    for i in range(count):
         headers.make()
-    print(f'C++ making {count} times', time.time() - _start)
+    _end = time.time_ns()
+    print(f'C++ making {count} times', _end - _start, 'ns', (_end - _start) / count, 'ns', count / (_end - _start) * 10**9, 'per s')
 
     _headers = _HttpHeaders()
     _headers.set(':status', '200 OK')
     _headers.set('Server', 'Slinn')
-    _start = time.time()
-    for i in range(500000):
+    _start = time.time_ns()
+    for i in range(count):
         _headers.make()
-    print(f'Python making {count} times', time.time() - _start)
+    _end = time.time_ns()
+    print(f'Python making {count} times', _end - _start, 'ns', (_end - _start) / count, 'ns', count / (_end - _start) * 10**9, 'per s')
 

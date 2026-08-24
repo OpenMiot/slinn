@@ -29,6 +29,7 @@ class TcpServer:
 
         self.server_pipes: list[TcpPipe] = []
         self.waiting_pipes: dict = {}
+        self.waiting_pipes_event = asyncio.Event()
 
         self.timeout = self.tcp_config.get('timeout', 0.5)
         self.max_timeout = self.tcp_config.get('_max_timeout', 60)
@@ -38,6 +39,11 @@ class TcpServer:
 
     async def reload(self, *args, **kwargs) -> None:
         self.logger.info(f'Server :{self.address.port} has reloaded')
+    
+    def _add_pipe_to_waitlist(self, pipe: TcpPipe):
+        if pipe not in self.waiting_pipes:
+            self.waiting_pipes.setdefault(pipe)
+            self.waiting_pipes_event.set()
 
     async def listen(self) -> None:
         event_loop = asyncio.get_running_loop()
@@ -67,23 +73,28 @@ class TcpServer:
                 port = self.address.port
             ))
             self.server_pipes.append(server_pipe)
-            event_loop.add_reader(server_pipe.file_no(), self.waiting_pipes.setdefault, server_pipe)
+            event_loop.add_reader(server_pipe.file_no(), self._add_pipe_to_waitlist, server_pipe)
         
         try:
             while True:
                 try:
+                    await self.waiting_pipes_event.wait()
                     while self.waiting_pipes:
                         server_pipe = next(iter(self.waiting_pipes.keys()))
-                        client_pipe, client_address = await server_pipe.accept()
+                        event_loop.remove_reader(server_pipe.file_no())
                         del self.waiting_pipes[server_pipe]
-                        event_loop.create_task(self.handle_pipe(client_pipe, client_address, {}))
+                        try:
+                            client_pipe, client_address = await server_pipe.accept()
+                            event_loop.create_task(self.handle_pipe(client_pipe, client_address, {}))
+                        finally:
+                            event_loop.add_reader(server_pipe.file_no(), self._add_pipe_to_waitlist, server_pipe)
+                    self.waiting_pipes_event.clear()
                 except KeyboardInterrupt:
                     raise
                 except Exception as e:
                     self.logger.warning(
                         _('During handling exception, an {exception} has occurred').format(exception = e), exc_info=True
                     )
-                await asyncio.sleep(self.debounce)
         except KeyboardInterrupt:
             await self.shutdown()
             raise

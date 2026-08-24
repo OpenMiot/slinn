@@ -9,7 +9,7 @@ class BaseTcpBus(BaseBus):
         super().__init__()
     
     @on(Accepted)
-    async def on_accepted(self):
+    async def on_accepted(self, client_pipe: TcpPipe, client_address: Address):
         ...
     
     @on(DataReceived)

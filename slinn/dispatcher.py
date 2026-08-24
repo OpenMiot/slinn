@@ -97,7 +97,7 @@ class Dispatcher:
                 finally:
                     event_loop.close()
 
-        self._main_thread = threading.Thread(target=run_servers, daemon=False)
+        self._main_thread = threading.Thread(target=run_servers, daemon=True)
         self._main_thread.start()
 
     def join(self):

@@ -9,13 +9,13 @@ class Endpoint:
     def __init__(
         self,
         _filter: FilterProtocol | None,
-        function: Callable,
+        handler: Callable,
         args: Callable[..., dict] = lambda *args, **kwargs: {}
     ):
         self.filter = _filter
-        self.function = function
+        self.handler = handler
         self.args = args
-        self.is_generator = inspect.isasyncgenfunction(function)
+        self.is_generator = inspect.isasyncgenfunction(handler)
     
     def apply_decorators(self, decorators: Iterable[Callable]) -> Endpoint:
-        return Endpoint(self.filter, reduce(lambda res, func: func(res), decorators, self.function), self.args)
+        return Endpoint(self.filter, reduce(lambda res, func: func(res), decorators, self.handler), self.args)

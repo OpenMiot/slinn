@@ -1,6 +1,6 @@
 from slinn.net.http.responses import HttpBodyMixin, HttpResponse
 from slinn.net.http.filters import Filter
-from slinn.net.http import HttpRequest
+from slinn.net.http import HttpRequest, HttpHeaders
 from slinn.net.http.filters import Path
 from slinn.net import Endpoint
 from slinn import MiddlewareProtocol, utils
@@ -32,14 +32,14 @@ class HttpRouter:
             return wrapper
         return decorator
     
-    def get_endpoint(self, request: HttpRequest, **kwargs) -> Endpoint | None:
+    def get_endpoint(self, recv_headers: HttpHeaders, **kwargs) -> Endpoint | None:
         for endpoint in self.endpoints:
-            if endpoint.filter.check(request):
+            if endpoint.filter.check(recv_headers):
                 return endpoint.apply_decorators(self.middlewares)
 
-    def check(self, request: HttpRequest, **kwargs) -> bool:
+    def check(self, recv_headers: HttpHeaders, **kwargs) -> bool:
         return not len(self.hosts) or True in [
-            utils.restartswith(request.headers.authority, _host) for _host in self.hosts
+            utils.restartswith(recv_headers.authority, _host) for _host in self.hosts
         ]
 
     def _register_handler_decorator(self, path: str = '', methods: tuple[str, ...] = ()):

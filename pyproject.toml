@@ -4,8 +4,8 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "slinn"
-version = "3.0.0a13"
-description = "Универсальная сетевая платформа"
+version = "3.0.0a14"
+description = "Универсальная событийно-ориентированная платформа"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.15"
@@ -46,6 +46,7 @@ classifiers = [
 
     "Framework :: AsyncIO",
     "Framework :: Pytest",
+    "Framework :: Pydantic",
     "Framework :: Pydantic :: 2",
 
     "Natural Language :: Russian",
@@ -80,8 +81,8 @@ wheel.expand-macos-universal-tags = true
 build-dir = "build"
 
 [tool.scikit-build.editable]
-mode = "redirect"           # вместо "inplace" – сборка в build/ и симлинки
-rebuild = false             # не пересобирать при повторной установке, если ничего не изменилось
+mode = "redirect"
+rebuild = false
 
 [tool.pytest.ini_options]
 addopts = "-v --cov=slinn --cov-report=html --cov-fail-under=80"

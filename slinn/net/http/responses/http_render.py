@@ -24,7 +24,7 @@ class HttpRender(HttpResponse):
         async def render_hook(
             self,
             *,
-            request: HttpRequest,
+            recv_headers: HttpHeaders,
             ft_router: FTRouter | None = None,
             **kwargs
         ) -> dict:
@@ -32,16 +32,16 @@ class HttpRender(HttpResponse):
             
             endpoint = None
             for _endpoint in ft_router.endpoints:
-                if _endpoint.filter.check(request = request):
+                if _endpoint.filter.check(recv_headers = recv_headers):
                     endpoint = _endpoint
                     break
             if not ft_router.endpoints or not endpoint:
                 with self.storage(self.file_path, 'rb') as file:
                     self.payload = file.read()
-                    return kwargs | {'request': request, 'ft_router': ft_router}
+                    return kwargs | {'recv_headers': recv_headers, 'ft_router': ft_router}
             with self.storage(self.file_path, 'rb') as file:
                 response = await utils.optional(
-                    endpoint.function,
+                    endpoint.handler,
                     file = file,
                     headers = self.headers,
                     ppdata = self.ppdata
@@ -50,9 +50,9 @@ class HttpRender(HttpResponse):
                 self.payload = await utils.optional(
                     response.make,
                     HttpBodyMixin,
-                    chunked = False
+                    chunked = False,
                 )
-                return kwargs | {'request': request, 'ft_router': ft_router}
+                return kwargs | {'recv_headers': recv_headers, 'ft_router': ft_router}
         
         super().__init__(self, None, headers, status, hooks={
             render_hook: (HttpHeadersMixin,)

@@ -1,6 +1,5 @@
 from __future__ import annotations
-from slinn import utils
-from slinn.net.http import HttpRequest
+from slinn.net.http import HttpHeaders
 import re
 
 
@@ -16,9 +15,9 @@ class Filter:
         self.filter = re.compile(_filter)
         self.methods = methods
 
-    def check(self, request: HttpRequest, **kwargs) -> bool:
-        link = request.headers.path[:(request.headers.path.index('?') if '?' in request.headers.path else None)]
-        return request.headers.method in self.methods and self.filter.match(link)
+    def check(self, recv_headers: HttpHeaders, **kwargs) -> bool:
+        link = recv_headers.path[:(recv_headers.path.index('?') if '?' in recv_headers.path else None)]
+        return recv_headers.method in self.methods and self.filter.match(link)
 
     def args(self, *args, **kwargs) -> dict:
         return {}

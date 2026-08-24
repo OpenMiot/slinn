@@ -1,7 +1,8 @@
-from typing import Protocol, Any, Optional, Iterable
+from typing import Protocol, Any
 from slinn.net import PipeProtocol
 from slinn.net.address import Address
 from slinn.eda import BaseBus
+from collections.abc import Iterable
 import logging
 import ssl
 
@@ -12,11 +13,11 @@ class ServerProtocol[TBus: BaseBus](Protocol):
         address: Address,
         protocols_config: dict[str, dict[str, Any]],
         logger: logging.Logger,
-        bus: TBus,
+        bus: Iterable[TBus],
         ssl_context: ssl.SSLContext | None
     ): ...
 
-    async def reload(self, *routers: TBus) -> None: ...
+    async def reload(self, *buses: TBus) -> None: ...
 
     async def listen(self) -> None: ...
 

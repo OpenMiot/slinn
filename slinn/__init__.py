@@ -8,12 +8,14 @@ import sys
 import inspect
 import warnings
 import gettext
+import functools
 
 
 root = os.path.dirname(inspect.getfile(sys.modules[__name__]))
 
 ctx_translations: ContextVar = ContextVar("translations")
 
+@functools.cache
 def _(text: str) -> str:
     try:
         return ctx_translations.get().gettext(text)
@@ -35,7 +37,7 @@ VERSION = frozendict(
         minor = 0,
         patch = 0,
         type = 'alpha',
-        revision = 13
+        revision = 14
     ),
     dies_at = __PD + timedelta(days=180),
     is_eap = True,
@@ -69,8 +71,10 @@ if VERSION['may_incompatible']:
         skip_file_prefixes = (os.path.dirname(__name__), )
     )
 
-lazy from slinn.middleware_protocol import MiddlewareProtocol
-lazy from slinn.preprocessor import Preprocessor
 lazy from slinn.dispatcher import Dispatcher
+lazy from slinn.middleware_protocol import MiddlewareProtocol
 lazy from slinn.migration import Migration
+lazy from slinn.preprocessor import Preprocessor
 lazy from slinn.template_protocol import TemplateProtocol
+
+__all__ = ('Dispatcher', 'MiddlewareProtocol', 'Migration', 'Preprocessor', 'TemplateProtocol')

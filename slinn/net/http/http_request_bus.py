@@ -3,12 +3,11 @@ from slinn.net.http.events import HttpRequestReceived
 from slinn.net.tcp import TcpPipe
 from slinn.net.address import Address
 from slinn.eda import BaseBus, on
-from slinn.utils import optional
 from collections.abc import Iterable
-import asyncio
+import time
 
 
-class HttpBus(BaseBus):
+class HttpRequestBus(BaseBus):
     def __init__(
         self,
         routers: Iterable[HttpRouter],
@@ -28,13 +27,14 @@ class HttpBus(BaseBus):
         client_address: Address,
         extend_headers: HttpHeaders
     ):
-        loop = asyncio.get_running_loop()
-        t3 = loop.time()
-        responder = HttpResponder(client_pipe, self.file_types_router, self.http_codes_router)
+        t3 = time.perf_counter_ns()
+        responder = HttpResponder(client_pipe, self.file_types_router)
         meta = {
             'client_pipe': client_pipe,
             'client_address': client_address,
             'request': request,
+            'recv_headers': request.headers,
+            'http_codes_router': self.http_codes_router
         }
         endpoint = None
         for router in self.routers:
@@ -44,14 +44,14 @@ class HttpBus(BaseBus):
                     break
         if not endpoint:
             endpoint = self.http_codes_router[404]
-        t4 = loop.time()
+        t4 = time.perf_counter_ns()
         await responder.handle_endpoint(
             endpoint = endpoint,
             request = request,
             args = meta,
             extend_headers = extend_headers.extend(HttpHeaders(default_headers = {
                 'Server-Timing': ((
-                    f'route;desc="Routing";dur={(t4-t3)*1000}'
+                    f'route;desc="Routing";dur={(t4-t3)*1e-6}'
                 ), )
             })),
             skip_body = True,

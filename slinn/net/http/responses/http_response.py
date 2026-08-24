@@ -22,20 +22,28 @@ class HttpResponse(HttpHeadersMixin, HttpBodyMixin):
         hooks: dict[Callable, Iterable[type]] | None = None
     ):
         payload = representate(payload)
-
-        if headers_mixin:
+        
+        self.headers_mixin = headers_mixin
+        self.body_mixin = body_mixin
+        
+        if self.headers_mixin:
             HttpHeadersMixin.__init__(
                 self,
                 headers = headers or HttpHeaders(),
                 status = status,
                 content_type = content_type
             )
-        if body_mixin:
+        if self.body_mixin:
             HttpBodyMixin.__init__(self, payload)
 
         self.hooks = hooks or {}
 
     async def make(self, mixin: type, **kwargs) -> bytes:
+        if isinstance(mixin, HttpBodyMixin) and not self.body_mixin:
+            print('lol')
+            return b''
+        if isinstance(mixin, HttpHeadersMixin) and not self.headers_mixin:
+            return b''
         for callback, mixins in self.hooks.items():
             if mixin in mixins:
                 kwargs = await callback(self, **kwargs)

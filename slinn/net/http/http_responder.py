@@ -1,17 +1,16 @@
-from slinn.net.http import HttpHeaders, HttpVersion, HttpRequest, FTRouter, HCRouter
+from slinn.net.http import HttpHeaders, HttpVersion, HttpRequest, FTRouter, HCRouter, HttpHandlerProcessor
 from slinn.net.http.responses import HttpHeadersMixin, HttpBodyMixin, HttpResponse
 from slinn.net.tcp import TcpPipe
 from slinn.net import Endpoint
 from slinn.utils import optional
 from typing import Any
-import asyncio
+import time
 
 
 class HttpResponder:
-    def __init__(self, client_pipe: TcpPipe, file_types_router: FTRouter | None, http_codes_router: HCRouter | None):
+    def __init__(self, client_pipe: TcpPipe, file_types_router: FTRouter | None):
         self.client_pipe = client_pipe
         self.file_types_router = file_types_router or FTRouter()
-        self.http_codes_router = http_codes_router or HCRouter()
     
     async def handle_endpoint(
         self,
@@ -23,45 +22,36 @@ class HttpResponder:
         trail = False,
         may_close = False
     ) -> HttpHeaders:
-        loop = asyncio.get_running_loop()
-        t0 = loop.time()
-        coro = optional(endpoint.function, **args)
+        t0 = time.perf_counter_ns()
         resp_headers: HttpHeaders | None = None
-        ignore_body = hasattr(endpoint.function, 'ignore_body') and endpoint.function.ignore_body
+        ignore_body = hasattr(endpoint.handler, 'ignore_body') and endpoint.handler.ignore_body
         bytes_resp = bytearray()
-        if not endpoint.is_generator:
+        async for chunk in HttpHandlerProcessor.process(
+            endpoint.handler,
+            is_generator = endpoint.is_generator,
+            **args
+        ):
+            if bytes_resp:
+                await self.client_pipe.send(bytes_resp)
             bytes_resp, resp_headers = await self.answer_response(
-                await coro,
-                request,
+                chunk,
                 args,
                 resp_headers,
                 extend_headers,
                 ignore_body = ignore_body
             )
-        else:
-            async for response in coro:
-                if bytes_resp:
-                    await self.client_pipe.send(bytes_resp)
-                bytes_resp, resp_headers = await self.answer_response(
-                    response,
-                    request,
-                    args,
-                    resp_headers,
-                    extend_headers,
-                    ignore_body = ignore_body
-                )
-        t1 = loop.time()
+        t1 = time.perf_counter_ns()
         if skip_body:
             await request.body.skip()
-        t2 = loop.time()
+        t2 = time.perf_counter_ns()
         if trail and resp_headers and 'chunked' in resp_headers.get('Transfer-Encoding', '').lower():
             bytes_resp.extend(b'0\r\n')
             if 'server-timing' in resp_headers.get('Trailer', '').lower():
                 bytes_resp.extend(
                     (
                         'Server-Timing: '
-                        f'endpoint;desc="Making response";dur={(t1-t0)*1000},'
-                        f'skip;desc="Body skip";dur={(t2-t1)*1000}\r\n'
+                        f'endpoint;desc="Making response";dur={(t1-t0)*1e-6},'
+                        f'skip;desc="Body skip";dur={(t2-t1)*1e-6}\r\n'
                     ).encode()
                 )
             bytes_resp.extend(b'\r\n')
@@ -69,12 +59,11 @@ class HttpResponder:
         if may_close and request.headers.get(
             'Connection', 'close' if request.headers.version == HttpVersion.H1 else 'Keep-Alive') == 'close':
             self.client_pipe.close()
-        return resp_headers
+        return bytearray(), resp_headers
 
     async def answer_response(
         self,
         response: Any,
-        request: HttpRequest,
         args: frozendict,
         resp_headers: HttpHeaders,
         extend_headers: HttpHeaders,
@@ -82,10 +71,6 @@ class HttpResponder:
     ) -> tuple[bytearray, HttpHeaders | None]:
         if not response:
             return bytearray(), None
-        if isinstance(response, int):
-            return await self.handle_endpoint(self.http_codes_router[response], request, args, extend_headers)
-        if not isinstance(response, HttpBodyMixin) and not isinstance(response, HttpHeadersMixin):
-            response = HttpResponse(response)
         bytes_resp = bytearray()
         if isinstance(response, HttpHeadersMixin) and not resp_headers:
             resp_headers = extend_headers

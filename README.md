@@ -1,7 +1,7 @@
 
 <div align="center">
     <h1>Slinn</h1>
-    <b>Slinn - универсальная сетевая платформа на Python</b><br/>
+    <b>Slinn - универсальная событийно-ориентированная платформа на Python</b><br/>
     <img src="https://github.com/openmiot/slinn/actions/workflows/tests.yml/badge.svg?event=push&branch=flux" alt="Tests"/>
     <img src="https://img.shields.io/pypi/pyversions/slinn.svg?color=%2334D058" alt="Supported Python versions">
     <img src="https://img.shields.io/github/v/release/OpenMiot/slinn" alt="GitHub Release"/>
@@ -24,7 +24,7 @@
 - Поддержка любых сетевых протоколов
 - Работа на нескольких портах в одном запущенном экземпляре
 
-### Простой пример синтаксиса
+### Пример HTTP-сервера
 ```python
 from slinn.net.http import HttpRouter
 from slinn.net.http.responses import HttpRedirect
@@ -56,13 +56,13 @@ async def helloworld():
 
 ### Начало проекта
 ```bash
-slinn-admin create-project www
+slinn-admin init www
 cd www
 venv/bin/activate
-slinn create-app localhost host=localhost host=127.0.0.1
+slinn create-app my_app
 ```
 
-Вставьте пример в `localhost/app.py`, затем запустите скрипт `start.bat` или `start.sh`
+Вставьте пример в `my_app/app.py`, затем запустите скрипт `start.bat` или `start.sh`
 
 Для настройки проекта нужно редактировать конфиг `slinn.toml`
 

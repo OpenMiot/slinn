@@ -1,0 +1,1 @@
+from .gzip_middleware import GzipMiddleware
