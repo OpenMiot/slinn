@@ -85,6 +85,12 @@ class TcpServer:
                         del self.waiting_pipes[server_pipe]
                         try:
                             client_pipe, client_address = await server_pipe.accept()
+                            for bus in self.buses:
+                                await bus.dispatch(
+                                    Accepted(),
+                                    client_pipe,
+                                    client_address
+                                )
                             event_loop.create_task(self.handle_pipe(client_pipe, client_address, {}))
                         finally:
                             event_loop.add_reader(server_pipe.file_no(), self._add_pipe_to_waitlist, server_pipe)

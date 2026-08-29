@@ -15,9 +15,9 @@ class Filter:
         self.filter = re.compile(_filter)
         self.methods = methods
 
-    def check(self, recv_headers: HttpHeaders, **kwargs) -> bool:
+    def check(self, recv_headers: HttpHeaders, *, skip_methods_check: bool = False, **kwargs) -> bool:
         link = recv_headers.path[:(recv_headers.path.index('?') if '?' in recv_headers.path else None)]
-        return recv_headers.method in self.methods and self.filter.match(link)
+        return (recv_headers.method in self.methods or skip_methods_check) and self.filter.match(link)
 
     def args(self, *args, **kwargs) -> dict:
         return {}

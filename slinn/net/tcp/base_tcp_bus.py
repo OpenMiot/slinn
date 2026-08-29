@@ -8,10 +8,10 @@ class BaseTcpBus(BaseBus):
     def __init__(self):
         super().__init__()
     
-    @on(Accepted)
+    @on(Accepted())
     async def on_accepted(self, client_pipe: TcpPipe, client_address: Address):
         ...
     
-    @on(DataReceived)
+    @on(DataReceived())
     async def on_data_received(self, data: bytes, client_pipe: TcpPipe, client_address: Address):
         ...

@@ -131,7 +131,7 @@ class HttpRequestBody:
             if b'\r\n' in b:
                 lines = b.split(b'\r\n', 1)
                 line += lines[0]
-                self._client_pipe.connection.paste(b[len(lines[0]) + 2:])
+                self._client_pipe.paste(b[len(lines[0]) + 2:])
                 break
             line += b
         return line
@@ -169,13 +169,13 @@ class HttpRequestBody:
         header = []
         while line := await self.getline():
             header.append(line)
-        return HttpRequest.parse_http_header(b'\r\n'.join(header).decode())
+        return parse_header(b'\r\n'.join(header).decode())
 
     async def next_file_body(self) -> bytes:
         data = bytearray()
         while line := await self.getline():
             if line == b'--' + self.files_boundary().encode():
-                self._client_pipe.connection.paste(b'--' + self.files_boundary().encode() + b'\r\n')
+                self._client_pipe.paste(b'--' + self.files_boundary().encode() + b'\r\n')
                 break
             if line == b'--' + self.files_boundary().encode() + b'--':
                 self._pending = False

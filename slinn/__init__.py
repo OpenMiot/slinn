@@ -37,7 +37,7 @@ VERSION = frozendict(
         minor = 0,
         patch = 0,
         type = 'alpha',
-        revision = 14
+        revision = 15
     ),
     dies_at = __PD + timedelta(days=180),
     is_eap = True,

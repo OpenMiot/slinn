@@ -43,7 +43,7 @@ HttpProtocol stdStringToHttpProtocol(const std::string_view& str){
 std::string titleCase(std::string text) {
     bool new_word = true;
     for (char &c : text) {
-        if (std::isspace(static_cast<unsigned char>(c))) {
+        if (std::isspace(static_cast<unsigned char>(c)) || c == '-' || c == '_') {
             new_word = true;
         } else if (new_word) {
             c = std::toupper(static_cast<unsigned char>(c));
@@ -144,33 +144,38 @@ HttpHeaders HttpHeaders::parse(const std::string& rawHttp){
 
     size_t pos = http.find("\r\n");
     std::string_view _startLine = http.substr(0, pos);
-    size_t methodPos =  _startLine.find(" ");
-    size_t pathPos = _startLine.find(" ", methodPos + 1);
+    size_t methodPos =  _startLine.find(' ');
+    size_t pathPos = _startLine.find(' ', methodPos + 1);
     
     HttpHeaders headers(
-        stdStringToHttpVersion(_startLine.substr(pathPos+1, pos))
+        stdStringToHttpVersion(_startLine.substr(pathPos + 1))
     );
     std::string _method = std::string(_startLine.substr(0, methodPos));
     toUpperCase(_method);
     headers._add(":method", _method);
-    headers._add(":path", std::string(strip(_startLine.substr(methodPos+1, pathPos-4))));
+    headers._add(":path", std::string(strip(_startLine.substr(methodPos + 1, pathPos - methodPos - 1))));
 
     size_t current_pos = pos + 2;
-    while (current_pos < http.size()) {
+    while(current_pos < http.size()){
         size_t next_line = http.find("\r\n", current_pos);
-        if (next_line == std::string::npos) break;
+        std::string_view line;
 
-        std::string_view line = http.substr(current_pos, next_line - current_pos);
+        if(next_line == std::string::npos){
+            line = http.substr(current_pos);
+        }else{
+            line = http.substr(current_pos, next_line - current_pos);
+        }
+        
         if (line.empty()) break;
 
         size_t colon_pos = line.find(':');
-        if (colon_pos != std::string::npos) {
+        if(colon_pos != std::string::npos){
             std::string_view key = line.substr(0, colon_pos);
             std::string_view value = line.substr(colon_pos + 1);
             headers._add(std::string(strip(key)), std::string(strip(value)));
         }
-
-        current_pos = next_line + 2;
+        
+        current_pos = next_line == std::string::npos ? http.size() : next_line + 2;
     }
 
     return headers;

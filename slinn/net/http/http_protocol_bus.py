@@ -67,7 +67,7 @@ class HttpProtocolBus(BaseTcpBus):
                     client_address, _headers, HttpRequestBody(_headers, client_pipe)
                 )
                 t2 = time.perf_counter_ns()
-                #self.logger.info(_repr(request))
+                self.logger.info(_repr(request))
                 t3 = time.perf_counter_ns()
                 await self.on_data_received.__func__.context[client_pipe]['bus'].dispatch(
                     HttpRequestReceived(),

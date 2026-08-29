@@ -8,17 +8,18 @@ import re
 class int(int): REGEXP = r'[0-9]+'
 class float(float): REGEXP = r'[0-9\.]+'
 class str(str): REGEXP = r'[\w\- ]+'
+class path(str): REGEXP = r'[\w\- \/]*'
 
 
 class IPath(Filter):
-    def __init__(self, pattern: str, methods: tuple[str, ...] = ('GET', 'POST')):
-        super().__init__(pattern, methods)
+    def __init__(self, pattern: str, methods: tuple[str, ...] = ('GET', )):
         self.types = {}
-        for a in self.filter.findall(r'<\w+ \w+>'):
+        for a in re.findall(r'<\w+ \w+>', pattern):
             t, n = a[1:-1].split()
             t = eval(t.split()[0])
-            self.filter = self.filter.replace(a, '(?P<'+n+'>' + t.REGEXP + ')')
+            pattern = pattern.replace(a, '(?P<'+n+'>' + t.REGEXP + ')')
             self.types[n] = t
+        super().__init__(pattern, methods)
 
     def args(self, headers: HttpHeaders) -> dict:
         args = re.search(self.filter, headers.link)

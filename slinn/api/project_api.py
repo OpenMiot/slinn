@@ -117,7 +117,7 @@ class ProjectApi:
         yield _('Starting servers...')
 
         #logging.basicConfig(filename=f'{self.config.project.name}.journal.log', level=logging.DEBUG)
-        logging.basicConfig(level=logging.WARNING)
+        logging.basicConfig(level=logging.DEBUG)
         addresses = {}
         for address in self.config.addresses:
             addresses[address.name] = AddressConfigFactory.get_address(**address.model_dump())
