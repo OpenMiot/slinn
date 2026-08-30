@@ -41,6 +41,6 @@ class AppApi:
             for router_name in routers_names:
                 yield getattr(module, router_name)
 
-    def load_config(self):
-        with self.storage('config.toml', 'rb') as config:
+    async def load_config(self):
+        async with self.storage('config.toml', 'rb') as config:
             self.config = AppConfig(**tomllib.load(config))

@@ -20,16 +20,26 @@ class HttpServer(ServerProtocol):
         buses: Iterable[HttpRequestBus] | None = None,
         ssl_context: ssl.SSLContext | None = None
     ) -> None:
+        self.address = address
+        self.protocols_config = protocols_config
         self.logger = logger
-
-        self.http_config = protocols_config.get('http', {})
+        self.http_request_buses = buses
+        self.ssl_context = ssl_context
+    
+        self.http_config = self.protocols_config.get('http', {})
 
         self._max_requests = self.http_config['max_requests']
         self._max_header_size = self.http_config['max_header_size']
-
+        
         self.project = ProjectApi(os.getcwd())
-        self.project.load_config()
-        self.routers = [*app.load_http_routers() for app in self.project.load_apps()]
+
+    async def reload(self, *routers: HttpRouter) -> None:
+        self.routers = routers
+        await self._server.reload()
+
+    async def listen(self):
+        await self.project.load_config()
+        self.routers = [*app.load_http_routers() async for app in self.project.load_apps()]
         
         self._http_codes_router = HCRouter()
         if 'http_codes_router' in self.http_config:
@@ -41,7 +51,7 @@ class HttpServer(ServerProtocol):
             *mod, obj =  self.http_config['file_types_router'].split('.')
             self._file_types_router = getattr(load_module('/'.join(mod)+'.py'), obj)
         
-        self.buses = list(buses or (HttpProtocolBus(
+        self.buses = list(self.http_request_buses or (HttpProtocolBus(
             max_requests = self._max_requests,
             routers = self.routers,
             file_types_router = self._file_types_router,
@@ -50,19 +60,14 @@ class HttpServer(ServerProtocol):
         ), ))
         
         self._server = TcpServer(
-            address = address,
-            protocols_config = protocols_config,
-            logger = logger,
+            address = self.address,
+            protocols_config = self.protocols_config,
+            logger = self.logger,
             buses = self.buses,
-            ssl_context = ssl_context,
+            ssl_context = self.ssl_context,
         )
         
         self.handle_pipe = self._server.handle_pipe
         self.shutdown = self._server.shutdown
-
-    async def reload(self, *routers: HttpRouter) -> None:
-        self.routers = routers
-        await self._server.reload()
-
-    async def listen(self):
+        
         await self._server.listen()

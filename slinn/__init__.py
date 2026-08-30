@@ -27,7 +27,7 @@ def _(text: str) -> str:
         except Exception:
             return text
 
-__PD = datetime(2026, 8, 21)
+__PD = datetime(2026, 8, 30)
 
 VERSION = frozendict(
     name = 'Slinn',
@@ -37,7 +37,7 @@ VERSION = frozendict(
         minor = 0,
         patch = 0,
         type = 'alpha',
-        revision = 15
+        revision = 16
     ),
     dies_at = __PD + timedelta(days=180),
     is_eap = True,

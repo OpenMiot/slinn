@@ -36,10 +36,10 @@ class HttpRender(HttpResponse):
                     endpoint = _endpoint
                     break
             if not ft_router.endpoints or not endpoint:
-                with self.storage(self.file_path, 'rb') as file:
+                async with self.storage(self.file_path, 'rb') as file:
                     self.payload = file.read()
                     return kwargs | {'recv_headers': recv_headers, 'ft_router': ft_router}
-            with self.storage(self.file_path, 'rb') as file:
+            async with self.storage(self.file_path, 'rb') as file:
                 response = await utils.optional(
                     endpoint.handler,
                     file = file,

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Callable, Iterable, Generator, Optional
+from collections.abc import Callable, Iterable, Iterator
 from .colorcodes import *
 from .defaults import APP_CONFIG
 from slinn import Migration, TemplateProtocol, root
@@ -15,13 +15,12 @@ import inspect
 import sys
 import zipfile
 import fnmatch
-import itertools
 import re
 
 
 slinn_root = StorageApi(root)
 
-def splits(string: str, delimiters=(' ', '\n'), quotes=tuple()):
+def splits(string: str, delimiters: Iterable[str] = (' ', '\n'), quotes: Iterable[str] = ()):
     result = ['']
     current_quote = ''
     for char in str(string):
@@ -112,17 +111,9 @@ def get_dir_checksum(dir):
     return hashlib.md5(''.join([checksum for checksum in get_dir_checksums(dir)]).encode()).hexdigest()
 
 
-def config():
-    with slinn_root('/defaults/project/slinn.toml', 'r') as f:
-        cfg = tomlkit.load(f)
-    with open('slinn.toml') as f:
-        cfg.update(tomlkit.load(f))
-    return cfg
-
-
-def packages():
+async def packages():
     plg = {}
-    with slinn_root('/defaults/project/spm_packages/packages.json', 'r') as f:
+    async with slinn_root('/defaults/project/spm_packages/packages.json', 'r') as f:
         plg = json.load(f)
     if os.path.isfile('spm_packages/packages.json'):
         with open('spm_packages/packages.json') as f:
@@ -173,7 +164,7 @@ def load_module(path: str, package_name: Optional[str] = None) -> object:
     return module
 
 
-def load_template(path: str, package_name: Optional[str] = None) -> TemplateProtocol:
+def load_template(path: str, package_name: str | None = None) -> TemplateProtocol:
     # TODO: stop using `load_module`
 
     module = load_module(path, package_name)
@@ -183,7 +174,7 @@ def load_template(path: str, package_name: Optional[str] = None) -> TemplateProt
             return obj
 
 
-def load_migrations(package_path: str, package_key: str, is_zip: bool) -> Generator[MigrationMeta, ...]:
+def load_migrations(package_path: str, package_key: str, is_zip: bool) -> Iterator[MigrationMeta]:
     imported_modules = set()
 
     def _load_migrations(internal_path: str):
@@ -255,14 +246,5 @@ load_imports: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip,
 ] + [
    f'import {app}' for app in apps if not app_config(app)['debug'] or debug
 ]
-
-get_routers: Callable[[list[str], bool], list[str]] = lambda apps, plugins_zip, plugins_dir, debug=False: [
-  f'{app}.router' for app in apps if not app_config(app)['debug'] or debug
-] + list(itertools.chain.from_iterable([
-    [
-        f'{key}.{router}' for router in plugin.get('plugin', {}).get('routers', [])
-    ]
-    for key, plugin in (plugins_zip | plugins_dir).items()
-]))
 
 app_reload: Callable[[str], str] = lambda app: f'global {app};{app} = importlib.reload({app});'

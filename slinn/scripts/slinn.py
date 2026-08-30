@@ -19,18 +19,17 @@ if not os.path.isfile(os.path.join(os.getcwd(), 'slinn.toml')):
     exit(f'{RED}Must be run in project`s root{RESET}')
 
 project = ProjectApi(os.getcwd())
-project.load_config()
 
 
 @root_command.subcommand('run')
 async def run_command():
-    for message in project.run():
+    async for message in project.run():
         yield message
 
 @root_command.subcommand('create-app', ('name', ))
 async def create_command(name: str):
     try:
-        project.create_app(name)
+        await project.create_app(name)
     except SlinnApiException as e:
         return str(e).capitalize(), RED
     return _('App successfully created'), GREEN
@@ -40,7 +39,7 @@ async def delete_command(name):
     if input(_('Are you sure? (y/N) >>> ')).lower() not in ('y', 'yes', _('y'), _('yes')):
         return _('Aborted')
     try:
-        project.delete_app(name)
+        await project.delete_app(name)
     except SlinnApiException as e:
         return str(e).capitalize(), RED
     return _('App successfully deleted'), GREEN
@@ -48,7 +47,7 @@ async def delete_command(name):
 @root_command.subcommand('template', ('template_name', 'app_name'))
 async def template_command(template_name, app_name):
     try:
-        project.install_template(template_name, app_name)
+        await project.install_template(template_name, app_name)
     except SlinnApiException as e:
         return str(e).capitalize(), RED
     return _('Template \'{template_name}\' successfully installed as \'{app_name}\'').format(
@@ -88,9 +87,13 @@ async def command_not_specified():
     yield f'{RED}Command was not specified{RESET}'
 
 
+async def _main():
+    await project.load_config()
+    await root_command(sys.argv[1:])
+
 def main():
     try:
-        asyncio.run(root_command(sys.argv[1:]))
+        asyncio.run(_main())
     except KeyboardInterrupt:
         print(f'\n\n{BLUE}{BOLD}KeyboardInterrupt{RESET}')
 

@@ -92,8 +92,8 @@ class ProjectApi:
         self.storage = StorageApi(path)
         self.config: ProjectConfig = None
 
-    def run(self):
-        pkgs = packages()
+    async def run(self):
+        pkgs = await packages()
         pkgs['plugins'] = plugins_sorted(pkgs['plugins'], pkgs)
 
         """routers = list(*app.load_routers() for app in self.load_apps())
@@ -136,11 +136,11 @@ class ProjectApi:
         yield _('Press CTRL+C to quit'), BOLD
         dispatcher.join()
 
-    def load_config(self):
-        with self.storage('slinn.toml', 'r') as rfile:
+    async def load_config(self):
+        async with self.storage('slinn.toml', 'r') as rfile:
             self.config = ProjectConfig(**tomlkit.loads(rfile.read().replace('\r', '')))
 
-    def save_config(self):
+    async def save_config(self):
         def _deep_update(mapping, updates):
             if isinstance(mapping, (list, tomlkit.items.AoT)) and isinstance(updates, list):
                 for i, item in enumerate(updates):
@@ -178,23 +178,23 @@ class ProjectApi:
             return mapping
 
         toml_config: tomlkit.TOMLDocument = None
-        with self.storage('slinn.toml', 'r') as rfile:
+        async with self.storage('slinn.toml', 'r') as rfile:
             toml_config = tomlkit.loads(rfile.read().replace('\r', ''))
         new_config = self.config.model_dump()
-        with self.storage('slinn.toml', 'w') as wfile:
+        async with self.storage('slinn.toml', 'w') as wfile:
             wfile.write(tomlkit.dumps(_deep_update(toml_config, new_config)).replace('\r', ''))
 
-    def load_apps(self) -> Iterator[AppApi]:
+    async def load_apps(self) -> Iterator[AppApi]:
         for app in self.config.apps:
             if (app.debug_only and not self.config.project.debug) or not os.path.isdir(app.name):
                 continue
             app_api = AppApi(app.name, self)
-            app_api.load_config()
+            await app_api.load_config()
             yield app_api
 
         # routers = get_routers([app['name'] for app in cfg['apps']], plugins_zip, plugins_dir, cfg.get('debug', False))
 
-    def create_app(self, name: str, *, init: bool = True) -> None:
+    async def create_app(self, name: str, *, init: bool = True) -> None:
         if not validate_name(name):
             raise AppNameIsNotValidException(name)
         if os.path.isdir(name):
@@ -202,20 +202,20 @@ class ProjectApi:
 
         app_storage = self.storage.substorage(name)
         if init:
-            with (app_storage('__init__.py', 'w') as wfile,
+            async with (app_storage('__init__.py', 'w') as wfile,
                   slinn_root('/defaults/app/__init__.template.py', 'r') as rfile):
                 wfile.write(rfile.read().format(name=name))
-            with (app_storage('app.py', 'w') as wfile,
+            async with (app_storage('app.py', 'w') as wfile,
                   slinn_root('/defaults/app/app.template.py', 'r') as rfile):
                 wfile.write(rfile.read())
-            with (app_storage('config.toml', 'w') as wfile,
+            async with (app_storage('config.toml', 'w') as wfile,
                   slinn_root('/defaults/app/config.template.toml', 'r') as rfile):
                 wfile.write(rfile.read())
 
         self.config.apps.append(ProjectConfig.App(name=name))
-        self.save_config()
+        await self.save_config()
 
-    def delete_app(self, name: str) -> None:
+    async def delete_app(self, name: str) -> None:
         if not validate_name(name):
             raise AppNameIsNotValidException(name)
         if not os.path.isdir(name):
@@ -226,9 +226,9 @@ class ProjectApi:
         for i, app in enumerate(self.config.apps):
             if app.name == name:
                 del self.config.apps[i]
-        self.save_config()
+        await self.save_config()
 
-    def install_template(self, template_name: str, app_name: str):
+    async def install_template(self, template_name: str, app_name: str):
         if not validate_name(app_name):
             raise AppNameIsNotValidException(app_name)
         if template_name not in self.get_templates():
@@ -238,7 +238,7 @@ class ProjectApi:
             f'spm_packages/Templates/{template_name}/template.py',
             f'spm_packages.Templates.{template_name}'
         )
-        self.create_app(app_name, init=False)
+        await self.create_app(app_name, init=False)
         template.install(
             os.path.abspath(app_name),
             os.path.abspath(f'spm_packages/Templates/{template_name}')
